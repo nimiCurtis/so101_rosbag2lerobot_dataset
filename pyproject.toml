@@ -10,6 +10,10 @@ license = { text = "MIT" }
 dependencies = [
 ]
 
+[tool.setuptools.packages.find]
+include = ["so101_rosbag2lerobot_dataset*"]
+exclude = ["config*"]
+
 [project.scripts]
 so101-rosbag2lerobot = "so101_rosbag2lerobot_dataset.cli:main"
 

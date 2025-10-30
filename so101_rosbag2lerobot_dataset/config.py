@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from typing import Dict, Tuple, List, Optional
+from sympy import root
 import yaml
+
+from .utils import build_dataset_dir
 
 
 @dataclass
@@ -9,6 +12,9 @@ class VideoInfo:
     pix_fmt: str = "yuv420p"
     is_depth_map: bool = False
     has_audio: bool = False
+    backend: str = "pyavc"  # "pyavc"
+    writer_processes: int = 4
+    writer_threads: int = 4
 
 
 @dataclass
@@ -33,6 +39,8 @@ class Topics:
 @dataclass
 class Config:
     out_dir: str
+    data_dir_name: str
+    root: str
     repo_id: str
     episode_per_bag: bool
     downsample_by: int
@@ -67,8 +75,14 @@ class Config:
         if joint_order is not None and len(joint_order) == 0:
             joint_order = None
 
+        out_dir = y["out_dir"]
+        data_dir_name = y.get("data_dir_name", "lerobot_dataset")
+        root = build_dataset_dir(out_dir, data_dir_name)
+        
         return Config(
-            out_dir=y["out_dir"],
+            out_dir=out_dir,
+            data_dir_name=data_dir_name,
+            root=root,
             repo_id=y["repo_id"],
             episode_per_bag=y.get("episode_per_bag", True),
             downsample_by=int(y.get("downsample_by", 1)),

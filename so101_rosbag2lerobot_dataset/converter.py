@@ -1,18 +1,21 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from pyexpat import features
 from typing import Dict, Optional, Tuple, Literal
 from pathlib import Path
 
 import logging
+import numpy as np
 from tqdm import tqdm
 
 from .config import Config
 from .io_bag import Rosbag2Reader
-from .sync import TopicBuffer
+from .sync import TopicBuffer, SyncStats
 from .utils import (
-    ros_image_to_chw_float01,
-    jointstate_to_vec6,
-    float64multiarray_to_vec6,
+    ros_image_to_hwc_float01,
+    ros_jointstate_to_vec6,
+    ros_float64multiarray_to_vec6,
+    build_dataset_dir,
 )
 
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -30,38 +33,65 @@ class RosbagToLeRobotConverter:
         self.cfg = cfg
         self.log = logger or logging.getLogger(__name__)
 
+    def _assert_schema(self, features):
+        for k, f in features.items():
+            if f["dtype"] in ("image","video"):
+                assert f["names"] == ["height","width","channel"], f"{k}: wrong names"
+                h,w,c = f["shape"]
+                assert c in (1,3), f"{k}: unexpected channels {c}"
+        
+        # TODO: motors ->> check name in config match names from rosparams 
+        
+
     def _create_dataset(self) -> LeRobotDataset:
+        """Create a LeRobot dataset from the extracted features.
+
+        Returns:
+            LeRobotDataset: The created dataset.
+        """
         features = {
             self.cfg.state.key: {
                 "dtype": "float32",
-                "shape": [self.cfg.state.size],
+                "shape": (self.cfg.state.size,),
                 "names": {"motors": [f"j{i}" for i in range(self.cfg.state.size)]},
             },
             self.cfg.action.key: {
                 "dtype": "float32",
-                "shape": [self.cfg.action.size],
+                "shape": (self.cfg.action.size,),
                 "names": {"motors": [f"j{i}" for i in range(self.cfg.action.size)]},
             },
         }
+
+        # Validate schema
+        self._assert_schema(features)
+
+        # images
         for name, stream in self.cfg.images.items():
             features[stream.key] = {
                 "dtype": "video" if self.cfg.use_videos else "image",
-                "shape": list(stream.shape),
-                "names": ["channel", "height", "width"],
+                "shape": list(stream.shape),  # HWC
+                "names": ["height", "width", "channel"],
                 "video_info": {
                     "video.fps": float(self.cfg.fps),
                     "video.codec": self.cfg.video.codec,
                     "video.pix_fmt": self.cfg.video.pix_fmt,
                     "video.is_depth_map": bool(self.cfg.video.is_depth_map),
                     "has_audio": bool(self.cfg.video.has_audio),
+                    "video_backend": self.cfg.video.backend,
+                    "image_writer_processes": self.cfg.video.writer_processes,
+                    "image_writer_threads": self.cfg.video.writer_threads,
                 } if self.cfg.use_videos else None,
             }
+
         ds = LeRobotDataset.create(
             repo_id=self.cfg.repo_id,
             features=features,
-            root=self.cfg.out_dir,
+            root=self.cfg.root,
             fps=self.cfg.fps,
             use_videos=self.cfg.use_videos,
+            video_backend=self.cfg.video.backend,
+            image_writer_processes=self.cfg.video.writer_processes,
+            image_writer_threads=self.cfg.video.writer_threads,
         )
         self.log.info("Created dataset at %s (fps=%s, videos=%s)", self.cfg.out_dir, self.cfg.fps, self.cfg.use_videos)
         return ds
@@ -122,40 +152,72 @@ class RosbagToLeRobotConverter:
         self.log.warning("Unknown sync_reference '%s'; defaulting to 'state'", ref)
         return "state", None
     
+    def _log_sync_report(self, stats: Dict[str, SyncStats]):
+        # Pretty print a one-line summary per topic
+        for name, st in stats.items():
+            s = st.summary()
+            self.log.info(
+                "[sync] %-22s tried=%4d matched=%4d rate=%.1f%% |median|dt|=%.4fs "
+                "mean=%.4fs p95=%.4fs max=%.4fs",
+                name,
+                st.tried,
+                st.matched,
+                100.0 * s["match_rate"],
+                s["median_abs_dt_s"],
+                s["mean_abs_dt_s"],
+                s["p95_abs_dt_s"],
+                s["max_abs_dt_s"],
+            )
+            
     def _iter_synced(self, bufs: FrameBuffers):
         ref_kind, ref_name = self._parse_sync_reference()
         tol = self.cfg.sync_tolerance_s
 
         if ref_kind == "image":
-            # ref_name is guaranteed valid/non-empty by _parse_sync_reference
             ref_buf = bufs.images[ref_name]  # type: ignore[index]
             other_image_names = [n for n in bufs.images.keys() if n != ref_name]
         else:
-            # avoid getattr; map is type-safe
             ref_map = {"state": bufs.state, "action": bufs.action}
             ref_buf = ref_map[ref_kind]
             other_image_names = list(bufs.images.keys())
 
+        # --- NEW: stats collectors per topic (and for state/action) ---
+        stats: Dict[str, SyncStats] = {}
+        for nm in other_image_names:
+            stats[f"image:{nm}"] = SyncStats()
+        stats["state"] = SyncStats()
+        stats["action"] = SyncStats()
+
         self.log.info("Sync reference: %s (frames=%d)", self.cfg.sync_reference, len(ref_buf.t))
         keep_count = 0
         total_ref = len(ref_buf.t)
+
         for i in tqdm(range(total_ref), desc="Sync frames", leave=False):
             tref = ref_buf.t[i]
             result = {"t": tref, "ref": ref_buf.d[i]}
 
             ok = True
+
+            # images first
             for name in other_image_names:
-                cand = bufs.images[name].nearest(tref, tol)
+                buf = bufs.images[name]
+                cand, dt = buf.nearest_with_dt(tref, tol)
+                stats_key = f"image:{name}"
+                stats[stats_key].add(cand is not None, dt)
                 if cand is None:
                     ok = False
+                    # don't break here; still record stats for state/action for a fair "tried" count?
+                    # We'll break to keep previous logic strict:
                     break
                 result[f"image:{name}"] = cand.data
             if not ok:
                 continue
 
+            # state & action
             for k in ("state", "action"):
                 buf = getattr(bufs, k)
-                cand = buf.nearest(tref, tol)
+                cand, dt = buf.nearest_with_dt(tref, tol)
+                stats[k].add(cand is not None, dt)
                 if cand is None:
                     ok = False
                     break
@@ -165,10 +227,15 @@ class RosbagToLeRobotConverter:
 
             keep_count += 1
             if self.cfg.downsample_by > 1 and (keep_count % self.cfg.downsample_by) != 0:
+                # Even if we skip yielding, we still counted "tried" and "matched" above, which is fine.
                 continue
+
             yield result
 
+        self._log_sync_report(stats)
+
     def convert(self) -> int:
+        """Convert all rosbag files under cfg.bags_root into a LeRobotDataset."""
         Path(self.cfg.out_dir).mkdir(parents=True, exist_ok=True)
         ds = self._create_dataset()
 
@@ -176,7 +243,7 @@ class RosbagToLeRobotConverter:
         self.log.info("Discovered %d bag(s) in %s", len(all_bags), self.cfg.bags_root)
 
         total_frames = 0
-        for bag in tqdm(all_bags, desc="Bags", unit="bag"):
+        for bag in tqdm(all_bags, desc="Processed Bags", unit="bag"):
             bufs = self._buffers_from_bag(bag)
             episode_frames = 0
             dropped = 0
@@ -188,33 +255,65 @@ class RosbagToLeRobotConverter:
                 ref_map = {"state": bufs.state, "action": bufs.action}
                 ref_len = len(ref_map[ref_kind].t)
 
+            self.log.info(f"Syncing bag {bag.name} with {ref_len} reference frames...")
+
             for m in self._iter_synced(bufs):
-                st6 = jointstate_to_vec6(m["state"], self.cfg.joint_order)
-                ac6 = float64multiarray_to_vec6(m["action"], size=self.cfg.action.size)
+                try:
+                    # Convert ROS messages → numpy arrays
+                    # inside the frame loop
+                    st6 = np.asarray(ros_jointstate_to_vec6(m["state"], self.cfg.joint_order),
+                                    dtype=np.float32).ravel()
+                    ac6 = np.asarray(ros_float64multiarray_to_vec6(m["action"], size=self.cfg.action.size),
+                                    dtype=np.float32).ravel()
 
-                frame = {
-                    self.cfg.state.key: st6.astype("float32"),
-                    self.cfg.action.key: ac6.astype("float32"),
-                }
+                    # Build the frame dict expected by LeRobotDataset
+                    frame = {
+                        self.cfg.state.key: st6.astype("float32"),
+                        self.cfg.action.key: ac6.astype("float32"),
+                        "task": self.cfg.task_text,      # required
+                    }
 
-                for name, stream in self.cfg.images.items():
-                    img_msg = m.get(f"image:{name}") if f"image:{name}" in m else (m["ref"] if self.cfg.sync_reference == f"image:{name}" else None)
-                    if img_msg is None:
-                        dropped += 1
-                        break
-                    frame[stream.key] = ros_image_to_chw_float01(img_msg)
-                else:
-                    ds.add_frame(frame=frame, task=self.cfg.task_text)
+                    # Add all image streams
+                    missing_image = False
+                    for name, stream in self.cfg.images.items():
+                        img_msg = (
+                            m.get(f"image:{name}")
+                            if f"image:{name}" in m
+                            else (m["ref"] if self.cfg.sync_reference == f"image:{name}" else None)
+                        )
+
+                        if img_msg is None:
+                            missing_image = True
+                            dropped += 1
+                            self.log.debug(f"Dropped frame {episode_frames} (missing image:{name})")
+                            break
+
+                        frame[stream.key] = ros_image_to_hwc_float01(img_msg)
+
+                    if missing_image:
+                        continue  # skip this frame entirely
+
+                    # Add frame to dataset
+                    ds.add_frame(frame=frame)
                     episode_frames += 1
                     total_frames += 1
 
+                except Exception as e:
+                    dropped += 1
+                    self.log.error(f"Error processing frame {episode_frames} in bag {bag.name}: {e}")
+                    continue
+
+            # After finishing one bag (episode)
             if episode_frames > 0:
                 ds.save_episode()
                 ds.clear_episode_buffer()
 
-            self.log.info("Bag %s → episode frames: %d (ref=%d, dropped=%d)", bag.name, episode_frames, ref_len, dropped)
+            self.log.info(
+                "Bag %s → frames saved: %d / ref=%d | dropped=%d",
+                bag.name, episode_frames, ref_len, dropped
+            )
 
-        self.log.info("Completed. Total frames written: %d", total_frames)
+        self.log.info("✅ Completed conversion. Total frames written: %d", total_frames)
         return total_frames
 
     @staticmethod

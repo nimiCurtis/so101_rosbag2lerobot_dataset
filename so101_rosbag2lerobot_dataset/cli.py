@@ -2,24 +2,28 @@ import argparse
 import logging
 from pathlib import Path
 
-from .config import Config
-from .converter import RosbagToLeRobotConverter
+from so101_rosbag2lerobot_dataset.utils import build_dataset_dir
+from so101_rosbag2lerobot_dataset.config import Config
+from so101_rosbag2lerobot_dataset.converter import RosbagToLeRobotConverter
 
 
-def _setup_logger(out_dir: str) -> logging.Logger:
-    Path(out_dir).mkdir(parents=True, exist_ok=True)
+def _setup_logger(out_dir: str, data_dir_name: str) -> logging.Logger:
+    
+    log_dir = Path(out_dir) / "logs" / data_dir_name
+    log_dir.mkdir(parents=True, exist_ok=True)
     log = logging.getLogger("rosbag2lerobot")
     log.setLevel(logging.INFO)
 
+    format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
     # file handler
-    fh = logging.FileHandler(str(Path(out_dir) / "convert.log"))
+    fh = logging.FileHandler(log_dir / "convert.log")
     fh.setLevel(logging.INFO)
-    fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    fh.setFormatter(format)
 
     # console handler
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter("%(message)s"))
+    ch.setFormatter(format)
 
     # avoid duplicate handlers if CLI is called twice in same process
     if not log.handlers:
@@ -36,7 +40,8 @@ def main():
     args = parser.parse_args()
 
     cfg = Config.from_yaml(args.config)
-    log = _setup_logger(cfg.out_dir)
+
+    log = _setup_logger(cfg.out_dir, cfg.data_dir_name)
 
     log.info("=== so101_rosbag2lerobot_dataset ===")
     log.info("Output dir: %s", cfg.out_dir)
@@ -49,3 +54,6 @@ def main():
     conv = RosbagToLeRobotConverter(cfg, logger=log)
     total = conv.convert()
     log.info("Done. Total frames written: %d", total)
+
+if __name__ == "__main__":
+    main()

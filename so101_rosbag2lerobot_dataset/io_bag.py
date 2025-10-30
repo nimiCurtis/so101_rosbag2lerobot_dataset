@@ -3,8 +3,9 @@ from typing import Iterator
 import importlib
 import os
 from pathlib import Path
-
-
+# from rosbag2_py import StorageOptions, ConverterOptions, SequentialReader
+# from rclpy.serialization import deserialize_message
+# from rosidl_runtime_py.utilities import get_message
 @dataclass
 class BagMessage:
     topic: str
@@ -34,7 +35,7 @@ class Rosbag2Reader:
 
     def deserialize(self, raw: bytes, type_str: str):
         msg_type = self.get_message(type_str)
-        return self.deserialize_message(raw, msg_type)
+        return self.deserialize_message(raw, msg_type)\
 
 
 def discover_bags(root: Path):
