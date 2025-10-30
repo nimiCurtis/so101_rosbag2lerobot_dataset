@@ -1,0 +1,22 @@
+[project]
+name = "so101-rosbag2lerobot-dataset"
+version = "0.1.0"
+description = "Convert ROS 2 bags into LeRobot Dataset v3 episodes"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Nimrod Curtis" }]
+license = { text = "MIT" }
+
+dependencies = [
+]
+
+[project.scripts]
+so101-rosbag2lerobot = "so101_rosbag2lerobot_dataset.cli:main"
+
+[tool.ruff]
+line-length = 100
+extend-select = ["I"]
+fix = true
+
+[tool.black]
+line-length = 100
