@@ -272,9 +272,9 @@ class RosbagToLeRobotConverter:
                 try:
                     # Convert ROS messages → numpy arrays
                     # inside the frame loop
-                    st6 = np.asarray(ros_jointstate_to_vec6(m["state"], self.cfg.joint_order),
+                    st6 = np.asarray(ros_jointstate_to_vec6(m["state"], joint_order=self.cfg.joint_order, use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms),
                                     dtype=np.float32).ravel()
-                    ac6 = np.asarray(ros_float64multiarray_to_vec6(m["action"], size=self.cfg.action.size),
+                    ac6 = np.asarray(ros_float64multiarray_to_vec6(m["action"], size=self.cfg.action.size, use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms),
                                     dtype=np.float32).ravel()
 
                     # Build the frame dict expected by LeRobotDataset

@@ -44,6 +44,7 @@ class Config:
     robot_type: str
     episode_per_bag: bool
     downsample_by: int
+    use_lerobot_ranges_norms: bool
     force: bool
     sync_reference: str          # "image:<name>" | "state" | "action"
     sync_tolerance_s: float
@@ -90,6 +91,7 @@ class Config:
             robot_type=y["robot_type"],
             episode_per_bag=y.get("episode_per_bag", True),
             downsample_by=int(y.get("downsample_by", 1)),
+            use_lerobot_ranges_norms=bool(y.get("use_lerobot_ranges_norms", False)),
             force=bool(y.get("force", False)),
             sync_reference=y.get("sync_reference", "image:wrist"),
             sync_tolerance_s=float(y.get("sync_tolerance_s", 0.04)),

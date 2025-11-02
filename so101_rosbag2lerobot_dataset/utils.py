@@ -43,7 +43,7 @@ def ros_jointstate_to_vec6(js_msg, joint_order: Optional[List[str]] = None, use_
             vals = [pos[name_to_idx[n]] for n in joint_order]
             if use_lerobot_ranges_norms:
                 vals = [radians_to_normalized(joint_name, val) 
-                       for joint_name, val in zip(joint_order, vals)]
+                    for joint_name, val in zip(joint_order, vals)]
         except KeyError as e:
             missing = set(joint_order) - set(names)
             raise KeyError(f"Joint(s) {missing} not found in JointState.name") from e
@@ -56,13 +56,13 @@ def ros_jointstate_to_vec6(js_msg, joint_order: Optional[List[str]] = None, use_
             # When no joint_order is provided, use the joint names from the message
             joint_names = names[:6] if len(names) >= 6 else [f"joint_{i}" for i in range(6)]
             vals = [radians_to_normalized(joint_name, val) 
-                   for joint_name, val in zip(joint_names, vals)]
+                for joint_name, val in zip(joint_names, vals)]
         out[:] = np.array(vals, dtype=np.float32)
 
     return out
 
 
-def ros_float64multiarray_to_vec6(arr_msg, size: int = 6) -> np.ndarray:
+def ros_float64multiarray_to_vec6(arr_msg, size: int = 6, use_lerobot_ranges_norms: bool = False) -> np.ndarray:
     """
     Convert std_msgs/Float64MultiArray -> (size,) float32 vector.
     Takes the first `size` elements from msg.data.
@@ -70,7 +70,21 @@ def ros_float64multiarray_to_vec6(arr_msg, size: int = 6) -> np.ndarray:
     data = list(getattr(arr_msg, "data", []))
     if len(data) < size:
         raise ValueError(f"Float64MultiArray.data has {len(data)} values, need >= {size}")
-    return np.asarray(data[:size], dtype=np.float32)
+    
+    vals = data[:size]
+    if use_lerobot_ranges_norms:
+        # Apply radians_to_normalized conversion
+        # Last element is treated as gripper, others as regular joints
+        normalized_vals = []
+        for i, val in enumerate(vals):
+            if i == size - 1:  # Last element is gripper
+                joint_name = "gripper"
+            else:
+                joint_name = f"joint_{i}" # It does not matter what name we use here
+            normalized_vals.append(radians_to_normalized(joint_name, val))
+        vals = normalized_vals
+    
+    return np.asarray(vals, dtype=np.float32)
 
 
 def get_versioned_pathes(out_dir: str, data_dir_name: str) -> Tuple[str, str]:
