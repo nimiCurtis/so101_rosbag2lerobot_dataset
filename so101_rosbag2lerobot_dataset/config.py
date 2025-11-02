@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, List, Optional, Tuple
+
 import yaml
 
 from .utils import get_versioned_pathes
@@ -7,6 +8,8 @@ from .utils import get_versioned_pathes
 
 @dataclass
 class VideoInfo:
+    """Configuration describing how image streams are stored on disk."""
+
     codec: str = "av1"
     pix_fmt: str = "yuv420p"
     is_depth_map: bool = False
@@ -18,12 +21,16 @@ class VideoInfo:
 
 @dataclass
 class VectorSpec:
+    """Metadata describing a state or action vector stored in the dataset."""
+
     key: str
     size: int
 
 
 @dataclass
 class ImageStream:
+    """Description of a ROS topic that carries image data."""
+
     key: str
     shape: Tuple[int, int, int]  # (C, H, W)
     topic: str
@@ -31,12 +38,16 @@ class ImageStream:
 
 @dataclass
 class Topics:
+    """Container listing ROS topics of interest for the conversion."""
+
     state: str
     action: str  # was 'target'
 
 
 @dataclass
 class Config:
+    """Configuration for converting ROS 2 bag files into LeRobot datasets."""
+
     out_dir: str
     data_dir_name: str
     root: str
@@ -61,6 +72,15 @@ class Config:
 
     @staticmethod
     def from_yaml(path: str) -> "Config":
+        """Create a :class:`Config` instance from a YAML configuration file.
+
+        Args:
+            path: Path to a configuration YAML file.
+
+        Returns:
+            A fully populated :class:`Config` object ready for conversion.
+        """
+
         with open(path, "r") as f:
             y = yaml.safe_load(f)
 

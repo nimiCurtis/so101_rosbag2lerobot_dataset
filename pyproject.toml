@@ -1,6 +1,6 @@
 [project]
 name = "so101-rosbag2lerobot-dataset"
-version = "0.1.0"
+version = "1.0.0"
 description = "Convert ROS 2 bags into LeRobot Dataset v3 episodes"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -8,19 +8,39 @@ authors = [{ name = "Nimrod Curtis" }]
 license = { text = "MIT" }
 
 dependencies = [
+    "numpy>=1.23",
+    "pyyaml>=6.0",
+    "tqdm>=4.65",
+    "lerobot>=0.3.0",
+    "pre-commit>=3.6",
+    "pytest>=7.4",
 ]
 
 [tool.setuptools.packages.find]
 include = ["so101_rosbag2lerobot_dataset*"]
 exclude = ["config*"]
 
+[project.optional-dependencies]
+dev = [
+    "black>=24.4",
+    "isort>=5.13",
+    "ruff>=0.5",
+    "pre-commit>=3.6",
+    "pytest>=7.4",
+]
+
 [project.scripts]
 so101-rosbag2lerobot = "so101_rosbag2lerobot_dataset.cli:main"
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
 extend-select = ["I"]
-fix = true
 
 [tool.black]
 line-length = 100
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]

@@ -1,10 +1,25 @@
+import math
 from pathlib import Path
 from typing import List, Optional, Tuple
-import math
+
 import numpy as np
 
 
 def ros_image_to_hwc_float01(msg) -> np.ndarray:
+    """Convert a ROS image message to an HWC float array scaled to ``[0, 1]``.
+
+    Args:
+        msg: A ROS ``sensor_msgs/Image`` like object with ``encoding``, ``height``,
+            ``width`` and ``data`` attributes.
+
+    Returns:
+        ``numpy.ndarray`` with shape ``(height, width, 3)`` containing float32 values in
+        the range ``[0, 1]``.
+
+    Raises:
+        ValueError: If the encoding is not one of ``rgb8``, ``bgr8`` or ``mono8``.
+    """
+
     enc = msg.encoding
     if enc not in ("rgb8", "bgr8", "mono8"):
         raise ValueError(f"Unsupported encoding: {enc}")
@@ -14,12 +29,19 @@ def ros_image_to_hwc_float01(msg) -> np.ndarray:
         arr = arr[..., ::-1]
     if ch == 1:
         arr = np.repeat(arr, 3, axis=2)
-    return (arr.astype(np.float32) / 255.0)
+    return arr.astype(np.float32) / 255.0
 
 
 def radians_to_normalized(joint_name: str, rad: float) -> float:
-    """
-    converts a command in radians from MoveIt to the format expected by the SO101 API.
+    """Convert a radian command into the normalized SO101 joint range.
+
+    Args:
+        joint_name: Name of the joint for which the command is expressed. The gripper has
+            a special conversion.
+        rad: Command expressed in radians as provided by MoveIt.
+
+    Returns:
+        The normalized joint value expected by the SO101 API.
     """
     if joint_name == "gripper":
         # Convert radian command [0, pi] to the robot's expected gripper range [10, ~110]
@@ -30,7 +52,28 @@ def radians_to_normalized(joint_name: str, rad: float) -> float:
     return normalized
 
 
-def ros_jointstate_to_vec6(js_msg, joint_order: Optional[List[str]] = None, use_lerobot_ranges_norms: bool = False) -> np.ndarray:
+def ros_jointstate_to_vec6(
+    js_msg,
+    joint_order: Optional[List[str]] = None,
+    use_lerobot_ranges_norms: bool = False,
+) -> np.ndarray:
+    """Convert a ``sensor_msgs/JointState`` message to a six element vector.
+
+    Args:
+        js_msg: Message providing ``position`` and optionally ``name`` attributes.
+        joint_order: Optional explicit joint ordering for the returned vector.
+        use_lerobot_ranges_norms: Whether to map the values to LeRobot's normalized
+            ranges using :func:`radians_to_normalized`.
+
+    Returns:
+        ``numpy.ndarray`` shaped ``(6,)`` containing the joint positions.
+
+    Raises:
+        ValueError: If the provided message does not contain enough joint positions or
+            the ``joint_order`` does not contain exactly six joints.
+        KeyError: If a name specified in ``joint_order`` is missing in the message.
+    """
+
     pos = list(getattr(js_msg, "position", []))
     names = list(getattr(js_msg, "name", []))
     out = np.zeros((6,), dtype=np.float32)
@@ -62,10 +105,24 @@ def ros_jointstate_to_vec6(js_msg, joint_order: Optional[List[str]] = None, use_
     return out
 
 
-def ros_float64multiarray_to_vec6(arr_msg, size: int = 6, use_lerobot_ranges_norms: bool = False) -> np.ndarray:
-    """
-    Convert std_msgs/Float64MultiArray -> (size,) float32 vector.
-    Takes the first `size` elements from msg.data.
+def ros_float64multiarray_to_vec6(
+    arr_msg,
+    size: int = 6,
+    use_lerobot_ranges_norms: bool = False,
+) -> np.ndarray:
+    """Convert a ROS ``Float64MultiArray`` to a fixed-size float vector.
+
+    Args:
+        arr_msg: Message providing the ``data`` attribute.
+        size: Number of elements to extract from the message.
+        use_lerobot_ranges_norms: Whether to normalize the commands using the
+            :func:`radians_to_normalized` helper.
+
+    Returns:
+        ``numpy.ndarray`` with ``size`` float32 elements.
+
+    Raises:
+        ValueError: If the provided message does not contain enough elements.
     """
     data = list(getattr(arr_msg, "data", []))
     if len(data) < size:
@@ -88,24 +145,18 @@ def ros_float64multiarray_to_vec6(arr_msg, size: int = 6, use_lerobot_ranges_nor
 
 
 def get_versioned_pathes(out_dir: str, data_dir_name: str) -> Tuple[str, str]:
-    """
-    Get the versioned dataset directory name without creating the data directory.
-    The data directory will be created by LeRobotDataset.create().
-    Only creates the logs directory.
-    
-    Returns: (versioned_dataset_name, data_path)
-    
-    Example:
-        out_dir = "/tmp/output"
-        data_dir_name = "my_dataset"
-        
-        Returns: ("my_dataset_1", "/tmp/output/data/my_dataset_1")
-        
-        Creates:
-        - /tmp/output/logs/my_dataset_1/  (for logs)
-        
-        But does NOT create:
-        - /tmp/output/data/my_dataset_1/  (LeRobotDataset.create() will do this)
+    """Return versioned log and data paths without creating the dataset directory.
+
+    The helper inspects both the ``data`` and ``logs`` directories to find the next
+    available suffix. Only the logs directory is created by the caller when needed – the
+    data directory is intentionally left for :class:`LeRobotDataset` to create.
+
+    Args:
+        out_dir: Root output directory containing ``data`` and ``logs`` sub-folders.
+        data_dir_name: Base name used for versioned directories.
+
+    Returns:
+        A tuple ``(logs_path, data_path)`` pointing to the computed directories.
     """
     version = 1
     

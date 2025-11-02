@@ -1,38 +1,45 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from pyexpat import features
-from typing import Dict, Optional, Tuple, Literal
-from pathlib import Path
 
 import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Literal, Optional, Tuple
+
 import numpy as np
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from tqdm import tqdm
 
 from .config import Config
 from .io_bag import Rosbag2Reader
-from .sync import TopicBuffer, SyncStats
+from .sync import SyncStats, TopicBuffer
 from .utils import (
+    ros_float64multiarray_to_vec6,
     ros_image_to_hwc_float01,
     ros_jointstate_to_vec6,
-    ros_float64multiarray_to_vec6,
 )
-
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
 
 @dataclass
 class FrameBuffers:
+    """Collection of synchronized buffers for a single rosbag."""
+
     images: Dict[str, TopicBuffer]
     state: TopicBuffer
     action: TopicBuffer
 
 
 class RosbagToLeRobotConverter:
+    """Convert ROS 2 bag files into LeRobot datasets based on a configuration."""
+
     def __init__(self, cfg: Config, logger: Optional[logging.Logger] = None):
+        """Initialize the converter with configuration and optional logger."""
+
         self.cfg = cfg
         self.log = logger or logging.getLogger(__name__)
 
     def _assert_schema(self, features):
+        """Validate the generated dataset schema matches image expectations."""
+
         for k, f in features.items():
             if f["dtype"] in ("image","video"):
                 assert f["names"] == ["height","width","channel"], f"{k}: wrong names"
@@ -43,11 +50,7 @@ class RosbagToLeRobotConverter:
         
 
     def _create_dataset(self) -> LeRobotDataset:
-        """Create a LeRobot dataset from the extracted features.
-
-        Returns:
-            LeRobotDataset: The created dataset.
-        """
+        """Create and configure the target :class:`LeRobotDataset` instance."""
         features = {
             self.cfg.state.key: {
                 "dtype": "float32",
@@ -97,6 +100,8 @@ class RosbagToLeRobotConverter:
         return ds
 
     def _buffers_from_bag(self, bag_path: Path) -> FrameBuffers:
+        """Load all relevant messages from a rosbag into in-memory buffers."""
+
         self.log.info("Reading bag: %s", bag_path.name)
         reader = Rosbag2Reader(bag_path, self.cfg.force, logger=self.log)
 
@@ -143,6 +148,8 @@ class RosbagToLeRobotConverter:
         return bufs
 
     def _parse_sync_reference(self) -> Tuple[Literal["image", "state", "action"], Optional[str]]:
+        """Parse the synchronization reference from the configuration."""
+
         ref = (self.cfg.sync_reference or "").strip()
         if ref.startswith("image:"):
             name = ref.split(":", 1)[1].strip() if ":" in ref else ""
@@ -160,6 +167,8 @@ class RosbagToLeRobotConverter:
         return "state", None
     
     def _log_sync_report(self, stats: Dict[str, SyncStats]):
+        """Emit a human readable summary of synchronization quality per topic."""
+
         # Pretty print a one-line summary per topic
         for name, st in stats.items():
             s = st.summary()
@@ -177,6 +186,8 @@ class RosbagToLeRobotConverter:
             )
             
     def _iter_synced(self, bufs: FrameBuffers):
+        """Yield synchronized frames combining images, state, and actions."""
+
         ref_kind, ref_name = self._parse_sync_reference()
         tol = self.cfg.sync_tolerance_s
 
@@ -242,7 +253,7 @@ class RosbagToLeRobotConverter:
         self._log_sync_report(stats)
 
     def convert(self) -> int:
-        """Convert all rosbag files under cfg.bags_root into a LeRobotDataset."""
+        """Convert all rosbag files under ``cfg.bags_root`` into a dataset."""
         # Note: Directory creation is now handled in cli.py via get_versioned_dataset_dir
         ds = self._create_dataset()
 
@@ -329,5 +340,7 @@ class RosbagToLeRobotConverter:
 
     @staticmethod
     def _discover_bags(root: Path):
+        """Yield bag files found recursively under ``root``."""
+
         from .io_bag import discover_bags
         yield from discover_bags(root)
