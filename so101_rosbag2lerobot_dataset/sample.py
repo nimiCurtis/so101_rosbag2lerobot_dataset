@@ -9,10 +9,13 @@ Usage:
 """
 
 import sys
+
 import pandas as pd
 
 
 def main(parquet_path: str):
+    """Explore a LeRobot parquet dataset by printing helpful statistics."""
+
     # ---------------------------------------------------------------------
     # 1. Load parquet file into a DataFrame
     # ---------------------------------------------------------------------
@@ -81,7 +84,6 @@ def main(parquet_path: str):
 
 
 if __name__ == "__main__":
-
-
-    parquet_path = "/home/nimrod/dev/so101_rosbag2lerobot_dataset/local_dataset_ros2/data/data/chunk-000/file-000.parquet"
-    main(parquet_path)
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: python -m so101_rosbag2lerobot_dataset.sample <dataset.parquet>")
+    main(sys.argv[1])

@@ -1,13 +1,15 @@
 # sync.py
-from dataclasses import dataclass
-from typing import List, Optional, Dict, Tuple
 from bisect import bisect_left
-import math
-import numpy as np  # add numpy for easy stats (optional but convenient)
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 
 
 @dataclass
 class Stamped:
+    """A lightweight container storing timestamped data."""
+
     t: float
     data: object
 
@@ -16,19 +18,27 @@ class TopicBuffer:
     """Keeps time-sorted messages and supports nearest lookup within tolerance."""
 
     def __init__(self):
+        """Initialize an empty topic buffer."""
+
         self.t: List[float] = []
         self.d: List[object] = []
 
     def add(self, t: float, data: object):
+        """Append a timestamped message to the buffer."""
+
         self.t.append(t)
         self.d.append(data)
 
     def finalize(self):
+        """Ensure timestamps are sorted while keeping data aligned."""
+
         if len(self.t) > 1 and any(self.t[i] > self.t[i + 1] for i in range(len(self.t) - 1)):
             pairs = sorted(zip(self.t, self.d), key=lambda x: x[0])
             self.t, self.d = [p[0] for p in pairs], [p[1] for p in pairs]
 
     def nearest(self, tref: float, tol: float) -> Optional[Stamped]:
+        """Return the closest stamped message within ``tol`` seconds of ``tref``."""
+
         if not self.t:
             return None
         i = bisect_left(self.t, tref)
@@ -45,8 +55,9 @@ class TopicBuffer:
             return Stamped(self.t[idx], self.d[idx])
         return None
 
-    # NEW: same as nearest, but also returns Δt (candidate_time - tref)
     def nearest_with_dt(self, tref: float, tol: float) -> Tuple[Optional[Stamped], Optional[float]]:
+        """Return the closest stamped message along with its offset from ``tref``."""
+
         if not self.t:
             return None, None
         i = bisect_left(self.t, tref)
@@ -67,11 +78,15 @@ class TopicBuffer:
 
 @dataclass
 class SyncStats:
-    tried: int = 0      # how many ref frames we attempted to match
-    matched: int = 0    # how many actually matched within tol
-    abs_dts: List[float] = None
+    """Accumulate statistics about synchronization success and drift."""
+
+    tried: int = 0
+    matched: int = 0
+    abs_dts: Optional[List[float]] = None
 
     def add(self, matched: bool, dt: Optional[float]):
+        """Record the outcome of a synchronization attempt."""
+
         if self.abs_dts is None:
             self.abs_dts = []
         self.tried += 1
@@ -80,6 +95,8 @@ class SyncStats:
             self.abs_dts.append(abs(dt))
 
     def summary(self) -> Dict[str, float]:
+        """Return descriptive statistics for the collected synchronization deltas."""
+
         if not self.abs_dts:
             return {
                 "match_rate": 0.0,

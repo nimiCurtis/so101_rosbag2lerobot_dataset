@@ -2,12 +2,13 @@ import argparse
 import logging
 from pathlib import Path
 
-from so101_rosbag2lerobot_dataset.utils import get_versioned_pathes
 from so101_rosbag2lerobot_dataset.config import Config
 from so101_rosbag2lerobot_dataset.converter import RosbagToLeRobotConverter
+from so101_rosbag2lerobot_dataset.utils import get_versioned_pathes
 
 
 def _setup_logger(out_dir: str, log_path: str) -> logging.Logger:
+    """Create a logger that writes both to stdout and ``log_path``."""
 
     log_dir = Path(log_path)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -33,6 +34,8 @@ def _setup_logger(out_dir: str, log_path: str) -> logging.Logger:
 
 
 def main():
+    """Entry point for the ``so101-rosbag2lerobot`` command line interface."""
+
     parser = argparse.ArgumentParser(
         description="Convert ROS 2 bag(s) to LeRobot Dataset v3 (videos/images + state + actions)."
     )
