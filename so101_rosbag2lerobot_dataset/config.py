@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from typing import Dict, Tuple, List, Optional
-from sympy import root
 import yaml
 
-from .utils import build_dataset_dir
+from .utils import get_versioned_pathes
 
 
 @dataclass
@@ -42,8 +41,10 @@ class Config:
     data_dir_name: str
     root: str
     repo_id: str
+    robot_type: str
     episode_per_bag: bool
     downsample_by: int
+    force: bool
     sync_reference: str          # "image:<name>" | "state" | "action"
     sync_tolerance_s: float
     use_videos: bool
@@ -77,15 +78,19 @@ class Config:
 
         out_dir = y["out_dir"]
         data_dir_name = y.get("data_dir_name", "lerobot_dataset")
-        root = build_dataset_dir(out_dir, data_dir_name)
-        
+
+        _, data_path = get_versioned_pathes(out_dir, data_dir_name)
+        root = data_path
+
         return Config(
             out_dir=out_dir,
             data_dir_name=data_dir_name,
             root=root,
             repo_id=y["repo_id"],
+            robot_type=y["robot_type"],
             episode_per_bag=y.get("episode_per_bag", True),
             downsample_by=int(y.get("downsample_by", 1)),
+            force=bool(y.get("force", False)),
             sync_reference=y.get("sync_reference", "image:wrist"),
             sync_tolerance_s=float(y.get("sync_tolerance_s", 0.04)),
             use_videos=bool(y.get("use_videos", True)),

@@ -15,7 +15,6 @@ from .utils import (
     ros_image_to_hwc_float01,
     ros_jointstate_to_vec6,
     ros_float64multiarray_to_vec6,
-    build_dataset_dir,
 )
 
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -87,19 +86,24 @@ class RosbagToLeRobotConverter:
             repo_id=self.cfg.repo_id,
             features=features,
             root=self.cfg.root,
+            robot_type=self.cfg.robot_type,
             fps=self.cfg.fps,
             use_videos=self.cfg.use_videos,
             video_backend=self.cfg.video.backend,
             image_writer_processes=self.cfg.video.writer_processes,
             image_writer_threads=self.cfg.video.writer_threads,
         )
-        self.log.info("Created dataset at %s (fps=%s, videos=%s)", self.cfg.out_dir, self.cfg.fps, self.cfg.use_videos)
+        self.log.info("Created dataset at %s (fps=%s, videos=%s)", self.cfg.root, self.cfg.fps, self.cfg.use_videos)
         return ds
 
     def _buffers_from_bag(self, bag_path: Path) -> FrameBuffers:
         self.log.info("Reading bag: %s", bag_path.name)
-        reader = Rosbag2Reader(bag_path)
+        reader = Rosbag2Reader(bag_path, self.cfg.force, logger=self.log)
 
+        if reader.processed:
+            self.log.warning(f"Skipping already processed bag: {bag_path}")
+            return FrameBuffers(images={}, state=TopicBuffer(), action=TopicBuffer())
+        
         IMG_T = "sensor_msgs/msg/Image"
         JS_T  = "sensor_msgs/msg/JointState"
         F64_T = "std_msgs/msg/Float64MultiArray"   # <<— action type
@@ -133,6 +137,9 @@ class RosbagToLeRobotConverter:
             b.finalize()
         bufs.state.finalize()
         bufs.action.finalize()
+        
+        reader.close()
+        
         return bufs
 
     def _parse_sync_reference(self) -> Tuple[Literal["image", "state", "action"], Optional[str]]:
@@ -236,7 +243,7 @@ class RosbagToLeRobotConverter:
 
     def convert(self) -> int:
         """Convert all rosbag files under cfg.bags_root into a LeRobotDataset."""
-        Path(self.cfg.out_dir).mkdir(parents=True, exist_ok=True)
+        # Note: Directory creation is now handled in cli.py via get_versioned_dataset_dir
         ds = self._create_dataset()
 
         all_bags = list(self._discover_bags(Path(self.cfg.bags_root)))
@@ -245,6 +252,10 @@ class RosbagToLeRobotConverter:
         total_frames = 0
         for bag in tqdm(all_bags, desc="Processed Bags", unit="bag"):
             bufs = self._buffers_from_bag(bag)
+            if not bufs.state.t:
+                self.log.warning("Skipping bag %s: no state messages found.", bag.name)
+                continue
+            
             episode_frames = 0
             dropped = 0
 

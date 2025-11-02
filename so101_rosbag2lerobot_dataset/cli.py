@@ -2,14 +2,14 @@ import argparse
 import logging
 from pathlib import Path
 
-from so101_rosbag2lerobot_dataset.utils import build_dataset_dir
+from so101_rosbag2lerobot_dataset.utils import get_versioned_pathes
 from so101_rosbag2lerobot_dataset.config import Config
 from so101_rosbag2lerobot_dataset.converter import RosbagToLeRobotConverter
 
 
-def _setup_logger(out_dir: str, data_dir_name: str) -> logging.Logger:
-    
-    log_dir = Path(out_dir) / "logs" / data_dir_name
+def _setup_logger(out_dir: str, log_path: str) -> logging.Logger:
+
+    log_dir = Path(log_path)
     log_dir.mkdir(parents=True, exist_ok=True)
     log = logging.getLogger("rosbag2lerobot")
     log.setLevel(logging.INFO)
@@ -41,10 +41,16 @@ def main():
 
     cfg = Config.from_yaml(args.config)
 
-    log = _setup_logger(cfg.out_dir, cfg.data_dir_name)
+    # Get versioned dataset directory and update config
+    log_path, data_path = get_versioned_pathes(cfg.out_dir, cfg.data_dir_name)
+
+    log = _setup_logger(cfg.out_dir, log_path)
 
     log.info("=== so101_rosbag2lerobot_dataset ===")
     log.info("Output dir: %s", cfg.out_dir)
+    log.info("Data dir: %s", data_path)
+    log.info("Logs dir: %s", log_path)
+    log.info("Versioned dataset: %s", log_path.split("/")[-1])
     log.info("Bags root: %s", cfg.bags_root)
     log.info("Repo id: %s | FPS: %s | Videos: %s", cfg.repo_id, cfg.fps, cfg.use_videos)
     log.info("Image streams: %s", ", ".join(f"{n}:{s.topic}" for n, s in cfg.images.items()))
