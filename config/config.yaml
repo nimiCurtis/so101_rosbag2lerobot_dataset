@@ -1,7 +1,7 @@
 # =============================
 # Global
 # =============================
-out_dir: "./local_dataset_ros2"          # local output directory
+out_dir: "./output"          # local output directory
 data_dir_name: "lerobot_dataset_example" # name of dataset inside HF repo
 repo_id: "your-hf-username/your-dataset" # set your HF repo here
 robot_type: "so101_follower"             # Support only -> so101_follower
@@ -11,7 +11,7 @@ force: true                             # overwrite existing datasets
 
 # pick one of: image:<name> | state | action
 # when using images, set to "image:wrist" (or any listed below)
-sync_reference: "image:wrist"      
+sync_reference: "image:wrist"
 sync_tolerance_s: 0.010                  # max time diff for sync (in seconds). Should be <= 1/fps.
 
 use_videos: true

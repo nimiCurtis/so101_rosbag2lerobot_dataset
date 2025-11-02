@@ -41,13 +41,12 @@ class RosbagToLeRobotConverter:
         """Validate the generated dataset schema matches image expectations."""
 
         for k, f in features.items():
-            if f["dtype"] in ("image","video"):
-                assert f["names"] == ["height","width","channel"], f"{k}: wrong names"
-                h,w,c = f["shape"]
-                assert c in (1,3), f"{k}: unexpected channels {c}"
-        
-        # TODO: motors ->> check name in config match names from rosparams 
-        
+            if f["dtype"] in ("image", "video"):
+                assert f["names"] == ["height", "width", "channel"], f"{k}: wrong names"
+                h, w, c = f["shape"]
+                assert c in (1, 3), f"{k}: unexpected channels {c}"
+
+        # TODO: motors ->> check name in config match names from rosparams
 
     def _create_dataset(self) -> LeRobotDataset:
         """Create and configure the target :class:`LeRobotDataset` instance."""
@@ -73,16 +72,20 @@ class RosbagToLeRobotConverter:
                 "dtype": "video" if self.cfg.use_videos else "image",
                 "shape": list(stream.shape),  # HWC
                 "names": ["height", "width", "channel"],
-                "video_info": {
-                    "video.fps": float(self.cfg.fps),
-                    "video.codec": self.cfg.video.codec,
-                    "video.pix_fmt": self.cfg.video.pix_fmt,
-                    "video.is_depth_map": bool(self.cfg.video.is_depth_map),
-                    "has_audio": bool(self.cfg.video.has_audio),
-                    "video_backend": self.cfg.video.backend,
-                    "image_writer_processes": self.cfg.video.writer_processes,
-                    "image_writer_threads": self.cfg.video.writer_threads,
-                } if self.cfg.use_videos else None,
+                "video_info": (
+                    {
+                        "video.fps": float(self.cfg.fps),
+                        "video.codec": self.cfg.video.codec,
+                        "video.pix_fmt": self.cfg.video.pix_fmt,
+                        "video.is_depth_map": bool(self.cfg.video.is_depth_map),
+                        "has_audio": bool(self.cfg.video.has_audio),
+                        "video_backend": self.cfg.video.backend,
+                        "image_writer_processes": self.cfg.video.writer_processes,
+                        "image_writer_threads": self.cfg.video.writer_threads,
+                    }
+                    if self.cfg.use_videos
+                    else None
+                ),
             }
 
         ds = LeRobotDataset.create(
@@ -96,7 +99,12 @@ class RosbagToLeRobotConverter:
             image_writer_processes=self.cfg.video.writer_processes,
             image_writer_threads=self.cfg.video.writer_threads,
         )
-        self.log.info("Created dataset at %s (fps=%s, videos=%s)", self.cfg.root, self.cfg.fps, self.cfg.use_videos)
+        self.log.info(
+            "Created dataset at %s (fps=%s, videos=%s)",
+            self.cfg.root,
+            self.cfg.fps,
+            self.cfg.use_videos,
+        )
         return ds
 
     def _buffers_from_bag(self, bag_path: Path) -> FrameBuffers:
@@ -108,10 +116,10 @@ class RosbagToLeRobotConverter:
         if reader.processed:
             self.log.warning(f"Skipping already processed bag: {bag_path}")
             return FrameBuffers(images={}, state=TopicBuffer(), action=TopicBuffer())
-        
+
         IMG_T = "sensor_msgs/msg/Image"
-        JS_T  = "sensor_msgs/msg/JointState"
-        F64_T = "std_msgs/msg/Float64MultiArray"   # <<— action type
+        JS_T = "sensor_msgs/msg/JointState"
+        F64_T = "std_msgs/msg/Float64MultiArray"  # <<— action type
 
         bufs = FrameBuffers(
             images={name: TopicBuffer() for name in self.cfg.images},
@@ -142,9 +150,9 @@ class RosbagToLeRobotConverter:
             b.finalize()
         bufs.state.finalize()
         bufs.action.finalize()
-        
+
         reader.close()
-        
+
         return bufs
 
     def _parse_sync_reference(self) -> Tuple[Literal["image", "state", "action"], Optional[str]]:
@@ -165,7 +173,7 @@ class RosbagToLeRobotConverter:
         # Fallback: default to 'state' to avoid None and log a warning
         self.log.warning("Unknown sync_reference '%s'; defaulting to 'state'", ref)
         return "state", None
-    
+
     def _log_sync_report(self, stats: Dict[str, SyncStats]):
         """Emit a human readable summary of synchronization quality per topic."""
 
@@ -184,7 +192,7 @@ class RosbagToLeRobotConverter:
                 s["p95_abs_dt_s"],
                 s["max_abs_dt_s"],
             )
-            
+
     def _iter_synced(self, bufs: FrameBuffers):
         """Yield synchronized frames combining images, state, and actions."""
 
@@ -266,7 +274,7 @@ class RosbagToLeRobotConverter:
             if not bufs.state.t:
                 self.log.warning("Skipping bag %s: no state messages found.", bag.name)
                 continue
-            
+
             episode_frames = 0
             dropped = 0
 
@@ -283,16 +291,28 @@ class RosbagToLeRobotConverter:
                 try:
                     # Convert ROS messages → numpy arrays
                     # inside the frame loop
-                    st6 = np.asarray(ros_jointstate_to_vec6(m["state"], joint_order=self.cfg.joint_order, use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms),
-                                    dtype=np.float32).ravel()
-                    ac6 = np.asarray(ros_float64multiarray_to_vec6(m["action"], size=self.cfg.action.size, use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms),
-                                    dtype=np.float32).ravel()
+                    st6 = np.asarray(
+                        ros_jointstate_to_vec6(
+                            m["state"],
+                            joint_order=self.cfg.joint_order,
+                            use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms,
+                        ),
+                        dtype=np.float32,
+                    ).ravel()
+                    ac6 = np.asarray(
+                        ros_float64multiarray_to_vec6(
+                            m["action"],
+                            size=self.cfg.action.size,
+                            use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms,
+                        ),
+                        dtype=np.float32,
+                    ).ravel()
 
                     # Build the frame dict expected by LeRobotDataset
                     frame = {
                         self.cfg.state.key: st6.astype("float32"),
                         self.cfg.action.key: ac6.astype("float32"),
-                        "task": self.cfg.task_text,      # required
+                        "task": self.cfg.task_text,  # required
                     }
 
                     # Add all image streams
@@ -322,7 +342,9 @@ class RosbagToLeRobotConverter:
 
                 except Exception as e:
                     dropped += 1
-                    self.log.error(f"Error processing frame {episode_frames} in bag {bag.name}: {e}")
+                    self.log.error(
+                        f"Error processing frame {episode_frames} in bag {bag.name}: {e}"
+                    )
                     continue
 
             # After finishing one bag (episode)
@@ -332,7 +354,10 @@ class RosbagToLeRobotConverter:
 
             self.log.info(
                 "Bag %s → frames saved: %d / ref=%d | dropped=%d",
-                bag.name, episode_frames, ref_len, dropped
+                bag.name,
+                episode_frames,
+                ref_len,
+                dropped,
             )
 
         self.log.info("✅ Completed conversion. Total frames written: %d", total_frames)
@@ -343,4 +368,5 @@ class RosbagToLeRobotConverter:
         """Yield bag files found recursively under ``root``."""
 
         from .io_bag import discover_bags
+
         yield from discover_bags(root)

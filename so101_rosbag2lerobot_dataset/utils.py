@@ -85,8 +85,10 @@ def ros_jointstate_to_vec6(
         try:
             vals = [pos[name_to_idx[n]] for n in joint_order]
             if use_lerobot_ranges_norms:
-                vals = [radians_to_normalized(joint_name, val) 
-                    for joint_name, val in zip(joint_order, vals)]
+                vals = [
+                    radians_to_normalized(joint_name, val)
+                    for joint_name, val in zip(joint_order, vals)
+                ]
         except KeyError as e:
             missing = set(joint_order) - set(names)
             raise KeyError(f"Joint(s) {missing} not found in JointState.name") from e
@@ -98,8 +100,9 @@ def ros_jointstate_to_vec6(
         if use_lerobot_ranges_norms:
             # When no joint_order is provided, use the joint names from the message
             joint_names = names[:6] if len(names) >= 6 else [f"joint_{i}" for i in range(6)]
-            vals = [radians_to_normalized(joint_name, val) 
-                for joint_name, val in zip(joint_names, vals)]
+            vals = [
+                radians_to_normalized(joint_name, val) for joint_name, val in zip(joint_names, vals)
+            ]
         out[:] = np.array(vals, dtype=np.float32)
 
     return out
@@ -127,7 +130,7 @@ def ros_float64multiarray_to_vec6(
     data = list(getattr(arr_msg, "data", []))
     if len(data) < size:
         raise ValueError(f"Float64MultiArray.data has {len(data)} values, need >= {size}")
-    
+
     vals = data[:size]
     if use_lerobot_ranges_norms:
         # Apply radians_to_normalized conversion
@@ -137,10 +140,10 @@ def ros_float64multiarray_to_vec6(
             if i == size - 1:  # Last element is gripper
                 joint_name = "gripper"
             else:
-                joint_name = f"joint_{i}" # It does not matter what name we use here
+                joint_name = f"joint_{i}"  # It does not matter what name we use here
             normalized_vals.append(radians_to_normalized(joint_name, val))
         vals = normalized_vals
-    
+
     return np.asarray(vals, dtype=np.float32)
 
 
@@ -159,21 +162,21 @@ def get_versioned_pathes(out_dir: str, data_dir_name: str) -> Tuple[str, str]:
         A tuple ``(logs_path, data_path)`` pointing to the computed directories.
     """
     version = 1
-    
+
     # Find next available version by checking both data and logs directories
     while True:
         if version == 1:
             versioned_name = data_dir_name
         else:
             versioned_name = f"{data_dir_name}_{version}"
-        
+
         data_path = Path(out_dir) / "data" / versioned_name
         logs_path = Path(out_dir) / "logs" / versioned_name
-        
+
         # If neither exists, we found our version
         if not data_path.exists() and not logs_path.exists():
             break
-            
+
         version += 1
 
     return str(logs_path), str(data_path)

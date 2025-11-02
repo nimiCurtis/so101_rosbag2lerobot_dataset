@@ -7,7 +7,7 @@ from so101_rosbag2lerobot_dataset.converter import RosbagToLeRobotConverter
 from so101_rosbag2lerobot_dataset.utils import get_versioned_pathes
 
 
-def _setup_logger(out_dir: str, log_path: str) -> logging.Logger:
+def _setup_logger(log_path: str) -> logging.Logger:
     """Create a logger that writes both to stdout and ``log_path``."""
 
     log_dir = Path(log_path)
@@ -45,24 +45,28 @@ def main():
     cfg = Config.from_yaml(args.config)
 
     # Get versioned dataset directory and update config
-    log_path, data_path = get_versioned_pathes(cfg.out_dir, cfg.data_dir_name)
+    log_path, data_path = get_versioned_pathes("output", cfg.data_dir_name)
 
-    log = _setup_logger(cfg.out_dir, log_path)
+    log = _setup_logger(log_path)
 
     log.info("=== so101_rosbag2lerobot_dataset ===")
-    log.info("Output dir: %s", cfg.out_dir)
     log.info("Data dir: %s", data_path)
     log.info("Logs dir: %s", log_path)
     log.info("Versioned dataset: %s", log_path.split("/")[-1])
     log.info("Bags root: %s", cfg.bags_root)
     log.info("Repo id: %s | FPS: %s | Videos: %s", cfg.repo_id, cfg.fps, cfg.use_videos)
     log.info("Image streams: %s", ", ".join(f"{n}:{s.topic}" for n, s in cfg.images.items()))
-    log.info("Sync ref: %s | Tol: %.1f ms | Downsample: %d",
-             cfg.sync_reference, cfg.sync_tolerance_s * 1000.0, cfg.downsample_by)
+    log.info(
+        "Sync ref: %s | Tol: %.1f ms | Downsample: %d",
+        cfg.sync_reference,
+        cfg.sync_tolerance_s * 1000.0,
+        cfg.downsample_by,
+    )
 
     conv = RosbagToLeRobotConverter(cfg, logger=log)
     total = conv.convert()
     log.info("Done. Total frames written: %d", total)
+
 
 if __name__ == "__main__":
     main()

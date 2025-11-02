@@ -48,7 +48,6 @@ class Topics:
 class Config:
     """Configuration for converting ROS 2 bag files into LeRobot datasets."""
 
-    out_dir: str
     data_dir_name: str
     root: str
     repo_id: str
@@ -57,7 +56,7 @@ class Config:
     downsample_by: int
     use_lerobot_ranges_norms: bool
     force: bool
-    sync_reference: str          # "image:<name>" | "state" | "action"
+    sync_reference: str  # "image:<name>" | "state" | "action"
     sync_tolerance_s: float
     use_videos: bool
     fps: int
@@ -97,14 +96,13 @@ class Config:
         if joint_order is not None and len(joint_order) == 0:
             joint_order = None
 
-        out_dir = y["out_dir"]
+        out_dir = "output"
         data_dir_name = y.get("data_dir_name", "lerobot_dataset")
 
         _, data_path = get_versioned_pathes(out_dir, data_dir_name)
         root = data_path
 
         return Config(
-            out_dir=out_dir,
             data_dir_name=data_dir_name,
             root=root,
             repo_id=y["repo_id"],

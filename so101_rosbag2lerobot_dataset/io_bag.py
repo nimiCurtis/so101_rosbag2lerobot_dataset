@@ -7,9 +7,6 @@ from typing import Iterator
 import yaml
 
 
-# from rosbag2_py import StorageOptions, ConverterOptions, SequentialReader
-# from rclpy.serialization import deserialize_message
-# from rosidl_runtime_py.utilities import get_message
 @dataclass
 class BagMessage:
     """A deserialized rosbag record accompanied by its timestamp."""
@@ -29,9 +26,11 @@ class Rosbag2Reader:
         self.force = force
         self.log = logger
         self.rosbag2_py = importlib.import_module("rosbag2_py")
-        self.deserialize_message = importlib.import_module("rclpy.serialization").deserialize_message
+        self.deserialize_message = importlib.import_module(
+            "rclpy.serialization"
+        ).deserialize_message
         self.get_message = importlib.import_module("rosidl_runtime_py.utilities").get_message
-        
+
         # Check if the bag is already processed
         self._processed = self.metadata.get("processed", False)
         if self._processed and not self.force:
@@ -63,7 +62,9 @@ class Rosbag2Reader:
     def iter_messages(self) -> Iterator[BagMessage]:
         """Yield messages from the rosbag in chronological order."""
 
-        storage_options = self.rosbag2_py.StorageOptions(uri=str(self.bag_path), storage_id="sqlite3")
+        storage_options = self.rosbag2_py.StorageOptions(
+            uri=str(self.bag_path), storage_id="sqlite3"
+        )
         converter_options = self.rosbag2_py.ConverterOptions(
             input_serialization_format="cdr",
             output_serialization_format="cdr",
@@ -91,6 +92,7 @@ class Rosbag2Reader:
             metadata["processed"] = True
             with open(metadata_path, "w") as f:
                 yaml.safe_dump(metadata, f)
+
 
 def discover_bags(root: Path):
     """Yield rosbag database files stored under ``root`` recursively."""

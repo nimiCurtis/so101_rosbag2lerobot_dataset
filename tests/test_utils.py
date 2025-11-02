@@ -124,12 +124,12 @@ def test_config_from_yaml(tmp_path: Path):
           action: /target
         bags_root: /bags
         task_text: pick
-        """.format(out_dir=tmp_path)
+        """.format(
+            out_dir=tmp_path
+        )
     )
 
     cfg = Config.from_yaml(str(config_yaml))
     assert cfg.images["wrist"].topic == "/camera"
     assert cfg.root.endswith("dataset")
     assert cfg.topics.state == "/joint_state"
-
-

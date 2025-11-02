@@ -1,25 +1,21 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 24.4.2
+    rev: 25.9.0
     hooks:
       - id: black
         args: ["--line-length=100"]
-        exclude: ^local_dataset_ros2/
   - repo: https://github.com/PyCQA/isort
-    rev: 5.13.2
+    rev: 7.0.0
     hooks:
       - id: isort
         args: ["--profile=black", "--line-length=100"]
-        exclude: ^local_dataset_ros2/
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.4
+    rev: v0.14.3
     hooks:
       - id: ruff
         args: ["--fix"]
-        exclude: ^local_dataset_ros2/
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
-        exclude: ^local_dataset_ros2/

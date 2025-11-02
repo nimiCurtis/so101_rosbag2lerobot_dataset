@@ -21,14 +21,10 @@ pre-commit install
    ```bash
    so101-rosbag2lerobot --config path/to/config.yaml
    ```
-3. Conversion produces versioned `data/` and `logs/` sub-directories inside `out_dir`. The logs contain synchronization reports for each bag.
+3. Conversion produces versioned `data/` and `logs/` sub-directories inside `./output`. The logs contain synchronization reports for each bag.
 
 ## Visualization
-Use the included `so101_rosbag2lerobot_dataset.sample` script to explore the resulting parquet data:
-```bash
-python -m so101_rosbag2lerobot_dataset.sample path/to/lerobot/file.parquet
-```
-For more advanced visualization, import the dataset with `pandas` or the LeRobot tooling to render videos and evaluate trajectories.
+TBD.
 
 ## Contribute
 Contributions are welcome! Please:
