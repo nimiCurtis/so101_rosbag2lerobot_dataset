@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 import yaml
 
-from .utils import get_versioned_pathes
+from .utils import get_versioned_paths
 
 
 @dataclass
@@ -99,7 +99,7 @@ class Config:
         out_dir = "output"
         data_dir_name = y.get("data_dir_name", "lerobot_dataset")
 
-        _, data_path = get_versioned_pathes(out_dir, data_dir_name)
+        _, data_path = get_versioned_paths(out_dir, data_dir_name)
         root = data_path
 
         return Config(

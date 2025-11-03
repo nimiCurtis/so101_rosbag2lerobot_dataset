@@ -4,7 +4,7 @@ from pathlib import Path
 
 from so101_rosbag2lerobot_dataset.config import Config
 from so101_rosbag2lerobot_dataset.converter import RosbagToLeRobotConverter
-from so101_rosbag2lerobot_dataset.utils import get_versioned_pathes
+from so101_rosbag2lerobot_dataset.utils import get_versioned_paths
 
 
 def _setup_logger(log_path: str) -> logging.Logger:
@@ -45,7 +45,7 @@ def main():
     cfg = Config.from_yaml(args.config)
 
     # Get versioned dataset directory and update config
-    log_path, data_path = get_versioned_pathes("output", cfg.data_dir_name)
+    log_path, data_path = get_versioned_paths("output", cfg.data_dir_name)
 
     log = _setup_logger(log_path)
 

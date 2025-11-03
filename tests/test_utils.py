@@ -40,12 +40,21 @@ def test_ros_image_to_hwc_float01_shape(encoding):
 
 
 def test_ros_jointstate_to_vec6_with_order_and_norm():
-    msg = DummyJointState(name=[f"joint_{i}" for i in range(6)], position=[math.pi / 2] * 6)
+
+    names_order = [
+        "shoulder_pan",
+        "shoulder_lift",
+        "elbow_flex",
+        "wrist_flex",
+        "wrist_roll",
+        "gripper",
+    ]
+
+    msg = DummyJointState(name=names_order, position=[math.pi / 2] * 6)
     vec = utils.ros_jointstate_to_vec6(msg, joint_order=msg.name, use_lerobot_ranges_norms=True)
+
     assert vec.shape == (6,)
-    # Normalization scales pi/2 to 50 for non-gripper joints
     assert np.allclose(vec[:-1], 50.0)
-    # The last joint (gripper) adds offset 10
     assert np.isclose(vec[-1], 60.0)
 
 
@@ -56,14 +65,14 @@ def test_ros_float64multiarray_to_vec6_normalized():
     assert np.isclose(vec[-1], 60.0)
 
 
-def test_get_versioned_pathes_creates_unique_names(tmp_path: Path):
+def test_get_versioned_paths_creates_unique_names(tmp_path: Path):
     out_dir = tmp_path / "output"
     logs_dir = out_dir / "logs" / "dataset"
     data_dir = out_dir / "data" / "dataset"
     logs_dir.mkdir(parents=True)
     data_dir.mkdir(parents=True)
 
-    logs_path, data_path = utils.get_versioned_pathes(str(out_dir), "dataset")
+    logs_path, data_path = utils.get_versioned_paths(str(out_dir), "dataset")
     assert logs_path.endswith("dataset_2")
     assert data_path.endswith("dataset_2")
 

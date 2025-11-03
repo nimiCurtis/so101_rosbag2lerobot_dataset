@@ -147,7 +147,7 @@ def ros_float64multiarray_to_vec6(
     return np.asarray(vals, dtype=np.float32)
 
 
-def get_versioned_pathes(out_dir: str, data_dir_name: str) -> Tuple[str, str]:
+def get_versioned_paths(out_dir: str, data_dir_name: str) -> Tuple[str, str]:
     """Return versioned log and data paths without creating the dataset directory.
 
     The helper inspects both the ``data`` and ``logs`` directories to find the next
