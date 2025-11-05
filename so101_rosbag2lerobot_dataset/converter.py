@@ -1,3 +1,26 @@
+# MIT License
+#
+# Copyright (c) 2025 nimiCurtis
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
 from __future__ import annotations
 
 import logging
@@ -7,6 +30,7 @@ from typing import Dict, Literal, Optional, Tuple
 
 import numpy as np
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.utils.control_utils import sanity_check_dataset_name
 from tqdm import tqdm
 
 from .config import Config
@@ -42,24 +66,53 @@ class RosbagToLeRobotConverter:
 
         for k, f in features.items():
             if f["dtype"] in ("image", "video"):
-                assert f["names"] == ["height", "width", "channel"], f"{k}: wrong names"
+                assert f["names"] == ["height", "width", "channels"], f"{k}: wrong names"
                 h, w, c = f["shape"]
                 assert c in (1, 3), f"{k}: unexpected channels {c}"
 
-        # TODO: motors ->> check name in config match names from rosparams
-
     def _create_dataset(self) -> LeRobotDataset:
         """Create and configure the target :class:`LeRobotDataset` instance."""
+
+        ## Assert joint_order length is equal to state/action size if provided
+        if self.cfg.joint_order is not None:
+            if len(self.cfg.joint_order) != self.cfg.state.size:
+                raise ValueError(
+                    f"Length of joint_order ({len(self.cfg.joint_order)}) does not match "
+                    f"state size ({self.cfg.state.size})"
+                )
+            if len(self.cfg.joint_order) != self.cfg.action.size:
+                raise ValueError(
+                    f"Length of joint_order ({len(self.cfg.joint_order)}) does not match "
+                    f"action size ({self.cfg.action.size})"
+                )
+
+        # Use a ternary operator to build the names list.
+        # If joint_order is provided, use it to create names like "joint_name.pos".
+        # Otherwise, fall back to default names like "j0", "j1", etc.
+        state_names = (
+            [f"{joint}.pos" for joint in self.cfg.joint_order]
+            if self.cfg.joint_order
+            else [f"j{i}" for i in range(self.cfg.state.size)]
+        )
+
+        action_names = (
+            [f"{joint}.pos" for joint in self.cfg.joint_order]
+            if self.cfg.joint_order
+            else [f"j{i}" for i in range(self.cfg.action.size)]
+        )
+
         features = {
             self.cfg.state.key: {
                 "dtype": "float32",
                 "shape": (self.cfg.state.size,),
-                "names": {"motors": [f"j{i}" for i in range(self.cfg.state.size)]},
+                # Use the flat list of names
+                "names": state_names,
             },
             self.cfg.action.key: {
                 "dtype": "float32",
                 "shape": (self.cfg.action.size,),
-                "names": {"motors": [f"j{i}" for i in range(self.cfg.action.size)]},
+                # Use the flat list of names
+                "names": action_names,
             },
         }
 
@@ -71,15 +124,14 @@ class RosbagToLeRobotConverter:
             features[stream.key] = {
                 "dtype": "video" if self.cfg.use_videos else "image",
                 "shape": list(stream.shape),  # HWC
-                "names": ["height", "width", "channel"],
-                "video_info": (
+                "names": ["height", "width", "channels"],
+                "info": (
                     {
                         "video.fps": float(self.cfg.fps),
                         "video.codec": self.cfg.video.codec,
                         "video.pix_fmt": self.cfg.video.pix_fmt,
                         "video.is_depth_map": bool(self.cfg.video.is_depth_map),
                         "has_audio": bool(self.cfg.video.has_audio),
-                        "video_backend": self.cfg.video.backend,
                         "image_writer_processes": self.cfg.video.writer_processes,
                         "image_writer_threads": self.cfg.video.writer_threads,
                     }
@@ -95,7 +147,6 @@ class RosbagToLeRobotConverter:
             robot_type=self.cfg.robot_type,
             fps=self.cfg.fps,
             use_videos=self.cfg.use_videos,
-            video_backend=self.cfg.video.backend,
             image_writer_processes=self.cfg.video.writer_processes,
             image_writer_threads=self.cfg.video.writer_threads,
         )
@@ -263,6 +314,16 @@ class RosbagToLeRobotConverter:
     def convert(self) -> int:
         """Convert all rosbag files under ``cfg.bags_root`` into a dataset."""
         # Note: Directory creation is now handled in cli.py via get_versioned_dataset_dir
+
+        try:
+            # This checks for valid repo_id format (e.g., "user/repo")
+            sanity_check_dataset_name(self.cfg.repo_id, policy_cfg=None)
+            self.log.info(f"Dataset repo_id '{self.cfg.repo_id}' passed sanity check.")
+        except ValueError as e:
+            self.log.error(f"Invalid dataset repo_id: {e}")
+            # Stop conversion if the name is invalid
+            raise
+
         ds = self._create_dataset()
 
         all_bags = list(self._discover_bags(Path(self.cfg.bags_root)))
@@ -350,7 +411,7 @@ class RosbagToLeRobotConverter:
             # After finishing one bag (episode)
             if episode_frames > 0:
                 ds.save_episode()
-                ds.clear_episode_buffer()
+                # ds.clear_episode_buffer()
 
             self.log.info(
                 "Bag %s → frames saved: %d / ref=%d | dropped=%d",
@@ -359,6 +420,9 @@ class RosbagToLeRobotConverter:
                 ref_len,
                 dropped,
             )
+
+        if self.cfg.upload_to_hub:
+            ds.push_to_hub(repo_id=self.cfg.repo_id)
 
         self.log.info("✅ Completed conversion. Total frames written: %d", total_frames)
         return total_frames

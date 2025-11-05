@@ -1,3 +1,26 @@
+# MIT License
+#
+# Copyright (c) 2025 nimiCurtis
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -14,7 +37,6 @@ class VideoInfo:
     pix_fmt: str = "yuv420p"
     is_depth_map: bool = False
     has_audio: bool = False
-    backend: str = "pyavc"  # "pyavc"
     writer_processes: int = 4
     writer_threads: int = 4
 
@@ -56,6 +78,7 @@ class Config:
     downsample_by: int
     use_lerobot_ranges_norms: bool
     force: bool
+    upload_to_hub: bool
     sync_reference: str  # "image:<name>" | "state" | "action"
     sync_tolerance_s: float
     use_videos: bool
@@ -111,6 +134,7 @@ class Config:
             downsample_by=int(y.get("downsample_by", 1)),
             use_lerobot_ranges_norms=bool(y.get("use_lerobot_ranges_norms", False)),
             force=bool(y.get("force", False)),
+            upload_to_hub=bool(y.get("upload_to_hub", False)),
             sync_reference=y.get("sync_reference", "image:wrist"),
             sync_tolerance_s=float(y.get("sync_tolerance_s", 0.04)),
             use_videos=bool(y.get("use_videos", True)),
