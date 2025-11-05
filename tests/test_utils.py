@@ -73,6 +73,20 @@ def test_ros_float64multiarray_to_vec6_normalized(dummy_array_factory):
     assert np.isclose(vec[-1], 60.0)
 
 
+def test_ros_jointstate_to_vec6_requires_six_values(dummy_jointstate_factory):
+    msg = dummy_jointstate_factory(["j0", "j1"], [0.1, 0.2])
+
+    with pytest.raises(ValueError, match="JointState.position has 2 values"):
+        utils.ros_jointstate_to_vec6(msg)
+
+
+def test_ros_float64multiarray_to_vec6_size_check(dummy_array_factory):
+    msg = dummy_array_factory([0.1, 0.2, 0.3])
+
+    with pytest.raises(ValueError, match="Float64MultiArray.data has 3 values"):
+        utils.ros_float64multiarray_to_vec6(msg, size=4)
+
+
 # ---------------------------
 # Versioned output paths
 # ---------------------------
@@ -129,10 +143,25 @@ def test_sync_stats_summary():
 # ---------------------------
 
 
-def test_config_from_yaml(make_config_yaml):
-    config_path = make_config_yaml({})
+def test_config_from_yaml(make_config_yaml, tmp_path):
+    out_dir = tmp_path / "converter_out"
+    config_path = make_config_yaml({"out_dir": str(out_dir), "data_dir_name": "dataset"})
     cfg = Config.from_yaml(str(config_path))
 
     assert cfg.images["wrist"].topic == "/camera"
-    assert cfg.root.endswith("dataset")
+    assert cfg.root == str(out_dir / "data" / "dataset")
     assert cfg.topics.state == "/joint_state"
+    assert cfg.joint_order is None
+
+
+def test_config_from_yaml_increments_version(make_config_yaml, tmp_path):
+    out_dir = tmp_path / "converter_out"
+    existing = out_dir / "data" / "dataset"
+    existing_logs = out_dir / "logs" / "dataset"
+    existing.mkdir(parents=True, exist_ok=True)
+    existing_logs.mkdir(parents=True, exist_ok=True)
+
+    config_path = make_config_yaml({"out_dir": str(out_dir), "data_dir_name": "dataset"})
+    cfg = Config.from_yaml(str(config_path))
+
+    assert cfg.root == str(out_dir / "data" / "dataset_2")
