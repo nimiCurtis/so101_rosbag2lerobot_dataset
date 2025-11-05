@@ -54,7 +54,7 @@ class ImageStream:
     """Description of a ROS topic that carries image data."""
 
     key: str
-    shape: Tuple[int, int, int]  # (C, H, W)
+    shape: Tuple[int, int, int]  # (H, W, C)
     topic: str
 
 
