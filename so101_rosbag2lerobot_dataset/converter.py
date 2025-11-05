@@ -411,7 +411,6 @@ class RosbagToLeRobotConverter:
             # After finishing one bag (episode)
             if episode_frames > 0:
                 ds.save_episode()
-                # ds.clear_episode_buffer()
 
             self.log.info(
                 "Bag %s → frames saved: %d / ref=%d | dropped=%d",
