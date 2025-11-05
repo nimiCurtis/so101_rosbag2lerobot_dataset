@@ -1,16 +1,22 @@
 # =============================
 # Global
 # =============================
-out_dir: "./local_dataset_ros2"
-repo_id: "your-hf-username/your-dataset"
-episode_per_bag: true
+out_dir: "./output"          # local output directory
+data_dir_name: "lerobot_dataset_example" # name of dataset inside HF repo
+repo_id: "nimiCurtis/test_01" # set your HF repo here
+robot_type: "so101_follower"             # Support only -> so101_follower
+episode_per_bag: true                    # split each rosbag into one episode
+downsample_by: 1                         # use every frame
+force: true                             # overwrite existing datasets
+upload_to_hub: true                     # upload to HF hub after conversion
+task_text: "pick and place"
 
-downsample_by: 1
-
+# =============================
+# ---- Video settings ----
 # pick one of: image:<name> | state | action
 # when using images, set to "image:wrist" (or any listed below)
 sync_reference: "image:wrist"
-sync_tolerance_s: 0.040
+sync_tolerance_s: 0.010                  # max time diff for sync (in seconds). Should be <= 1/fps.
 
 use_videos: true
 fps: 30
@@ -19,7 +25,17 @@ video:
   pix_fmt: "yuv420p"
   is_depth_map: false
   has_audio: false
+  writer_processes: 4
+  writer_threads: 4
 
+# multiple image streams; each has its own key, shape, and topic
+images:
+  wrist:
+    key: "observation.images.wrist"
+    shape: [360, 640, 3]
+    topic: "/follower/cam_front/image_raw"
+
+# =============================
 # ---- Observation & Action schema ----
 # Both are 6-D joint vectors (float32), e.g., joint angles in radians or normalized units.
 state:
@@ -29,25 +45,18 @@ action:
   key: "action"
   size: 6
 
+# Use Lerobot normalized ranges for joints
+use_lerobot_ranges_norms: false
+
 # If you want a specific joint order, list exactly 6 names (must match JointState.name).
 # If left empty, the converter takes the FIRST 6 positions in the message.
-joint_order: ["j1","j2","j3","j4","j5","j6"]
-
-# multiple image streams; each has its own key, shape, and topic
-images:
-  wrist:
-    key: "observation.images.wrist"
-    shape: [3, 360, 640]
-    topic: "/camera/wrist/image_raw"
-  side:
-    key: "observation.images.side"
-    shape: [3, 360, 640]
-    topic: "/camera/side/image_raw"
-
+joint_order: ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
+# =============================
+# ---- ROS 2 settings ----
 # ROS 2 topics (ALL REQUIRED; set action to same as state if needed)
 topics:
-  state:  "/so101/joint_states"               # sensor_msgs/JointState
-  action: "/so101/commanded_joint_positions"  # std_msgs/Float64MultiArray
+  state:  "/follower/joint_states"               # sensor_msgs/JointState
+  action: "/leader/joint_commands"  # std_msgs/Float64MultiArray
 
-bags_root: "/path/to/bagdir"
-task_text: "pick and place"
+bags_root: "/home/nimrod/dev/so101_rosbag2lerobot_dataset/bag"
+# =============================
