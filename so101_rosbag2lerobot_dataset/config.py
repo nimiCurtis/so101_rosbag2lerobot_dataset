@@ -119,7 +119,7 @@ class Config:
         if joint_order is not None and len(joint_order) == 0:
             joint_order = None
 
-        out_dir = "output"
+        out_dir = y.get("out_dir", "output")
         data_dir_name = y.get("data_dir_name", "lerobot_dataset")
 
         _, data_path = get_versioned_paths(out_dir, data_dir_name)
