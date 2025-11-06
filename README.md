@@ -3,6 +3,12 @@
 ## Overview
 so101_rosbag2lerobot_dataset converts ROS 2 bag recordings into [LeRobot](https://github.com/huggingface/lerobot) datasets. It wraps the ingestion of image, state, and action streams into a reproducible pipeline with synchronization diagnostics and versioned output directories, making it straightforward to publish high-quality robot demonstrations.
 
+## Dependencies
+
+- ROS2 Humble from the [Official Link](https://docs.ros.org/en/humble/Installation.html)
+- [LeRobot](https://github.com/huggingface/lerobot)
+- Hugging Face hub [user access token](https://huggingface.co/docs/hub/en/security-tokens)
+
 ## Installation
 ```bash
 python -m pip install so101-rosbag2lerobot-dataset
@@ -54,3 +60,5 @@ This project builds upon the excellent work of the [LeRobot](https://github.com/
 ## License
 
 This repository is released under the terms of the MIT License. See [LICENSE](LICENSE) for details.
+
+## V1.0.1 ROADMAP
