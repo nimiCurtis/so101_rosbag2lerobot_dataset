@@ -11,12 +11,13 @@ so101_rosbag2lerobot_dataset converts ROS 2 bag recordings into [LeRobot](https:
 
 ## Installation
 ```bash
+cd so101-rosbag2lerobot-dataset
 python -m pip install so101-rosbag2lerobot-dataset
 ```
-The package depends on `rosbag2_py` and related ROS 2 Python packages. Install them through your ROS 2 distribution or apt environment before installing this project.
 
 For local development:
 ```bash
+cd so101-rosbag2lerobot-dataset
 pip install -e .[dev]
 pre-commit install
 ```
