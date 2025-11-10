@@ -1,9 +1,8 @@
 # =============================
 # Global
 # =============================
-out_dir: "./output"          # local output directory
-data_dir_name: "lerobot_dataset_example" # name of dataset inside HF repo
-repo_id: "nimiCurtis/test_01" # set your HF repo here
+root: "./output"          # local root directory for datasets
+repo_id: "nimiCurtis/test_01" # dataset path relative to the root directory
 robot_type: "so101_follower"             # Support only -> so101_follower
 episode_per_bag: true                    # split each rosbag into one episode
 downsample_by: 1                         # use every frame

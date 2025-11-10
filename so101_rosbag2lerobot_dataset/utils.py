@@ -170,36 +170,45 @@ def ros_float64multiarray_to_vec6(
     return np.asarray(vals, dtype=np.float32)
 
 
-def get_versioned_paths(out_dir: str, data_dir_name: str) -> Tuple[str, str]:
+def get_versioned_paths(root: str, repo_id: str) -> Tuple[str, str, str]:
     """Return versioned log and data paths without creating the dataset directory.
 
-    The helper inspects both the ``data`` and ``logs`` directories to find the next
-    available suffix. Only the logs directory is created by the caller when needed – the
-    data directory is intentionally left for :class:`LeRobotDataset` to create.
+    The helper inspects both the dataset location and the hidden ``.logs`` directory to
+    find the next available suffix for the repo id. Only the logs directory is created by
+    the caller when needed – the dataset directory is intentionally left for
+    :class:`LeRobotDataset` to create.
 
     Args:
-        out_dir: Root output directory containing ``data`` and ``logs`` sub-folders.
-        data_dir_name: Base name used for versioned directories.
+        root: Base directory under which datasets and logs are stored.
+        repo_id: Relative dataset path (``org/name``) inside ``root``.
 
     Returns:
-        A tuple ``(logs_path, data_path)`` pointing to the computed directories.
+        A tuple ``(logs_path, resolved_repo_id, data_path)`` pointing to the computed
+        directories.
     """
+    root_path = Path(root)
+    repo_path = Path(repo_id)
+
+    if repo_path.is_absolute():
+        raise ValueError("repo_id must be a relative path")
+
+    dataset_name = repo_path.name
+    parent = repo_path.parent
     version = 1
 
-    # Find next available version by checking both data and logs directories
     while True:
         if version == 1:
-            versioned_name = data_dir_name
+            candidate = repo_path
         else:
-            versioned_name = f"{data_dir_name}_{version}"
+            candidate = parent / f"{dataset_name}_{version}"
 
-        data_path = Path(out_dir) / "data" / versioned_name
-        logs_path = Path(out_dir) / "logs" / versioned_name
+        data_path = root_path / candidate
+        logs_path = root_path / ".logs" / candidate
 
-        # If neither exists, we found our version
         if not data_path.exists() and not logs_path.exists():
             break
 
         version += 1
 
-    return str(logs_path), str(data_path)
+    resolved_repo_id = str(candidate).replace("\\", "/")
+    return str(logs_path), resolved_repo_id, str(data_path)

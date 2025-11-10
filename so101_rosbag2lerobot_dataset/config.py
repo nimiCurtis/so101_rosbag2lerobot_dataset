@@ -71,8 +71,8 @@ class Topics:
 class Config:
     """Configuration for converting ROS 2 bag files into LeRobot datasets."""
 
-    data_dir_name: str
     root: str
+    logs_dir: str
     repo_id: str
     robot_type: str
     episode_per_bag: bool
@@ -120,11 +120,8 @@ class Config:
         if joint_order is not None and len(joint_order) == 0:
             joint_order = None
 
-        out_dir = y.get("out_dir", "output")
-        data_dir_name = y.get("data_dir_name", "lerobot_dataset")
-
-        _, data_path = get_versioned_paths(out_dir, data_dir_name)
-        root = data_path
+        root_dir = y.get("root", "output")
+        log_path, repo_id, data_path = get_versioned_paths(root_dir, y["repo_id"])
 
         def _vector_spec(spec: Dict[str, object]) -> VectorSpec:
             msg_type = spec.get("msg_type") if spec.get("msg_type") is not None else spec.get("type")
@@ -135,9 +132,9 @@ class Config:
             )
 
         return Config(
-            data_dir_name=data_dir_name,
-            root=root,
-            repo_id=y["repo_id"],
+            root=data_path,
+            logs_dir=log_path,
+            repo_id=repo_id,
             robot_type=y["robot_type"],
             episode_per_bag=y.get("episode_per_bag", True),
             downsample_by=int(y.get("downsample_by", 1)),
