@@ -127,7 +127,7 @@ class Config:
         root = data_path
 
         def _vector_spec(spec: Dict[str, object]) -> VectorSpec:
-            msg_type = spec.get("msg_type") or spec.get("type")
+            msg_type = spec.get("msg_type") if spec.get("msg_type") is not None else spec.get("type")
             return VectorSpec(
                 key=str(spec["key"]),
                 size=int(spec["size"]),
