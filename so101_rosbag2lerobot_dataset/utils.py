@@ -67,8 +67,8 @@ def radians_to_normalized(joint_name: str, rad: float) -> float:
         The normalized joint value expected by the SO101 API.
     """
     if joint_name == "gripper":
-        # Convert radian command [0, pi] to the robot's expected gripper range [10, ~110]
-        normalized = (rad / math.pi) * 100.0 + 10.0
+        # Convert radian command [0, pi] to the robot's expected gripper range [0, 100]
+        normalized = (rad / math.pi) * 100.0
     else:
         # Convert radians to normalized range [-100, 100]
         normalized = (rad / math.pi) * 100.0
