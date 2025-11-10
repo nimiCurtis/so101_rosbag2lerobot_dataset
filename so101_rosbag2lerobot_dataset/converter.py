@@ -173,7 +173,8 @@ class RosbagToLeRobotConverter:
             return configured_type
 
         metadata = reader.metadata
-        topics = metadata.get("topics_with_message_count", []) or []
+        rosbag2_bagfile_information = metadata.get("rosbag2_bagfile_information", {}) or {}
+        topics = rosbag2_bagfile_information.get("topics_with_message_count", []) or []
         for entry in topics:
             topic_meta = entry.get("topic_metadata", {}) or {}
             if topic_meta.get("name") == topic_name:
@@ -419,8 +420,7 @@ class RosbagToLeRobotConverter:
 
             if not state_type or not action_type:
                 raise ValueError(
-                    "State or action message type could not be resolved for bag "
-                    f"{bag.name}."
+                    "State or action message type could not be resolved for bag " f"{bag.name}."
                 )
 
             for m in self._iter_synced(bufs):

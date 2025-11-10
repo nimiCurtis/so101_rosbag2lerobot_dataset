@@ -41,9 +41,12 @@ images:
 state:
   key: "observation.state"
   size: 6
+  # msg_type: "sensor_msgs/msg/JointState" # Optional
+
 action:
   key: "action"
   size: 6
+  # msg_type: "sensor_msgs/msg/JointState" # Optional
 
 # Use Lerobot normalized ranges for joints
 use_lerobot_ranges_norms: false
@@ -55,8 +58,8 @@ joint_order: ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wris
 # ---- ROS 2 settings ----
 # ROS 2 topics (ALL REQUIRED; set action to same as state if needed)
 topics:
-  state:  "/follower/joint_states"               # sensor_msgs/JointState
-  action: "/leader/joint_commands"  # std_msgs/Float64MultiArray
+  state:  "/follower/joint_states"       # sensor_msgs/JointState
+  action: "/leader/joint_commands"       # sensor_msgs/JointState
 
 bags_root: "/home/nimrod/dev/so101_rosbag2lerobot_dataset/bag"
 # =============================
