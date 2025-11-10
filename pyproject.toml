@@ -1,6 +1,6 @@
 [project]
 name = "so101-rosbag2lerobot-dataset"
-version = "1.0.0"
+version = "1.0.1"
 description = "Convert ROS 2 bags into LeRobot Dataset v3 episodes"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,6 +27,7 @@ dev = [
     "ruff>=0.5",
     "pre-commit>=3.6",
     "pytest>=7.4",
+    "lark>=1.1",
 ]
 
 [project.scripts]
