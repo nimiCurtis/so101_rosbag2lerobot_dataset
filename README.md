@@ -28,7 +28,7 @@ pre-commit install
    ```bash
    so101-rosbag2lerobot --config path/to/config.yaml
    ```
-3. Conversion produces versioned `data/` and `logs/` sub-directories inside `./output`. The logs contain synchronization reports for each bag.
+3. Conversion produces a versioned dataset under `<root>/<repo_id>` and stores logs in `<root>/.logs/<repo_id>`. The logs contain synchronization reports for each bag.
 
 ## Visualization
 

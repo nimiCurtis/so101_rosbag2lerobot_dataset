@@ -98,14 +98,15 @@ def test_get_versioned_paths_creates_unique_names(tmp_out_dir: Path):
     Given existing logs/data directories ending with 'dataset',
     the next call should suffix them with _2.
     """
-    # conftest created: <tmp_out_dir>/logs and <tmp_out_dir>/data
-    logs_dir = tmp_out_dir / "logs" / "dataset"
-    data_dir = tmp_out_dir / "data" / "dataset"
+    repo_id = "org/dataset"
+    logs_dir = tmp_out_dir / ".logs" / repo_id
+    data_dir = tmp_out_dir / repo_id
     logs_dir.mkdir(parents=True, exist_ok=True)
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    logs_path, data_path = utils.get_versioned_paths(str(tmp_out_dir), "dataset")
+    logs_path, resolved_repo_id, data_path = utils.get_versioned_paths(str(tmp_out_dir), repo_id)
     assert logs_path.endswith("dataset_2")
+    assert resolved_repo_id.endswith("dataset_2")
     assert data_path.endswith("dataset_2")
 
 
@@ -146,26 +147,29 @@ def test_sync_stats_summary():
 
 def test_config_from_yaml(make_config_yaml, tmp_path):
     out_dir = tmp_path / "converter_out"
-    config_path = make_config_yaml({"out_dir": str(out_dir), "data_dir_name": "dataset"})
+    config_path = make_config_yaml({"root": str(out_dir)})
     cfg = Config.from_yaml(str(config_path))
 
     assert cfg.images["wrist"].topic == "/camera"
-    assert cfg.root == str(out_dir / "data" / "dataset")
+    assert cfg.root == str(out_dir / "org" / "dataset")
+    assert cfg.logs_dir == str(out_dir / ".logs" / "org" / "dataset")
     assert cfg.topics.state == "/joint_state"
     assert cfg.joint_order is None
 
 
 def test_config_from_yaml_increments_version(make_config_yaml, tmp_path):
     out_dir = tmp_path / "converter_out"
-    existing = out_dir / "data" / "dataset"
-    existing_logs = out_dir / "logs" / "dataset"
+    existing = out_dir / "org" / "dataset"
+    existing_logs = out_dir / ".logs" / "org" / "dataset"
     existing.mkdir(parents=True, exist_ok=True)
     existing_logs.mkdir(parents=True, exist_ok=True)
 
-    config_path = make_config_yaml({"out_dir": str(out_dir), "data_dir_name": "dataset"})
+    config_path = make_config_yaml({"root": str(out_dir)})
     cfg = Config.from_yaml(str(config_path))
 
-    assert cfg.root == str(out_dir / "data" / "dataset_2")
+    assert cfg.root == str(out_dir / "org" / "dataset_2")
+    assert cfg.logs_dir == str(out_dir / ".logs" / "org" / "dataset_2")
+    assert cfg.repo_id == "org/dataset_2"
 
 
 def test_config_from_yaml_reads_vector_types(make_config_yaml, tmp_path):
