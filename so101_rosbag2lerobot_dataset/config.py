@@ -120,11 +120,13 @@ class Config:
         if joint_order is not None and len(joint_order) == 0:
             joint_order = None
 
-        root_dir = y.get("root", "output")
-        log_path, repo_id, data_path = get_versioned_paths(root_dir, y["repo_id"])
+        root_dir = y.get("root", "~/.cache/huggingface/lerobot")
+        log_path, repo_id = get_versioned_paths(root_dir, y["repo_id"])
 
         def _vector_spec(spec: Dict[str, object]) -> VectorSpec:
-            msg_type = spec.get("msg_type") if spec.get("msg_type") is not None else spec.get("type")
+            msg_type = (
+                spec.get("msg_type") if spec.get("msg_type") is not None else spec.get("type")
+            )
             return VectorSpec(
                 key=str(spec["key"]),
                 size=int(spec["size"]),
@@ -132,7 +134,7 @@ class Config:
             )
 
         return Config(
-            root=data_path,
+            root=root_dir,
             logs_dir=log_path,
             repo_id=repo_id,
             robot_type=y["robot_type"],

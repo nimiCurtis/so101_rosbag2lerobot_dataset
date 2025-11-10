@@ -170,7 +170,7 @@ def ros_float64multiarray_to_vec6(
     return np.asarray(vals, dtype=np.float32)
 
 
-def get_versioned_paths(root: str, repo_id: str) -> Tuple[str, str, str]:
+def get_versioned_paths(root: str, repo_id: str) -> Tuple[str, str]:
     """Return versioned log and data paths without creating the dataset directory.
 
     The helper inspects both the dataset location and the hidden ``.logs`` directory to
@@ -183,7 +183,7 @@ def get_versioned_paths(root: str, repo_id: str) -> Tuple[str, str, str]:
         repo_id: Relative dataset path (``org/name``) inside ``root``.
 
     Returns:
-        A tuple ``(logs_path, resolved_repo_id, data_path)`` pointing to the computed
+        A tuple ``(logs_path, resolved_repo_id)`` pointing to the computed
         directories.
     """
     root_path = Path(root)
@@ -210,5 +210,6 @@ def get_versioned_paths(root: str, repo_id: str) -> Tuple[str, str, str]:
 
         version += 1
 
+    # Normalize to POSIX style for consistency across platforms
     resolved_repo_id = str(candidate).replace("\\", "/")
-    return str(logs_path), resolved_repo_id, str(data_path)
+    return str(logs_path), resolved_repo_id
