@@ -28,6 +28,7 @@ import pytest
 
 from so101_rosbag2lerobot_dataset import utils
 from so101_rosbag2lerobot_dataset.config import Config
+from so101_rosbag2lerobot_dataset.constants import F64_T, JS_T
 from so101_rosbag2lerobot_dataset.sync import SyncStats
 
 # ---------------------------
@@ -165,3 +166,25 @@ def test_config_from_yaml_increments_version(make_config_yaml, tmp_path):
     cfg = Config.from_yaml(str(config_path))
 
     assert cfg.root == str(out_dir / "data" / "dataset_2")
+
+
+def test_config_from_yaml_reads_vector_types(make_config_yaml, tmp_path):
+    config_path = make_config_yaml(
+        {
+            "state": {
+                "key": "state",
+                "size": 6,
+                "type": JS_T,
+            },
+            "action": {
+                "key": "action",
+                "size": 6,
+                "msg_type": F64_T,
+            },
+        }
+    )
+
+    cfg = Config.from_yaml(str(config_path))
+
+    assert cfg.state.msg_type == JS_T
+    assert cfg.action.msg_type == F64_T

@@ -47,6 +47,7 @@ class VectorSpec:
 
     key: str
     size: int
+    msg_type: Optional[str] = None
 
 
 @dataclass
@@ -125,6 +126,14 @@ class Config:
         _, data_path = get_versioned_paths(out_dir, data_dir_name)
         root = data_path
 
+        def _vector_spec(spec: Dict[str, object]) -> VectorSpec:
+            msg_type = spec.get("msg_type") or spec.get("type")
+            return VectorSpec(
+                key=str(spec["key"]),
+                size=int(spec["size"]),
+                msg_type=str(msg_type) if msg_type else None,
+            )
+
         return Config(
             data_dir_name=data_dir_name,
             root=root,
@@ -141,8 +150,8 @@ class Config:
             fps=int(y.get("fps", 30)),
             video=VideoInfo(**y.get("video", {})),
             images=images,
-            state=VectorSpec(key=y["state"]["key"], size=int(y["state"]["size"])),
-            action=VectorSpec(key=y["action"]["key"], size=int(y["action"]["size"])),
+            state=_vector_spec(y["state"]),
+            action=_vector_spec(y["action"]),
             joint_order=joint_order,
             topics=Topics(**y["topics"]),
             bags_root=y["bags_root"],

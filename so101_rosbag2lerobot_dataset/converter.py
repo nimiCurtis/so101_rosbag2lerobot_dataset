@@ -33,7 +33,8 @@ from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.utils.control_utils import sanity_check_dataset_name
 from tqdm import tqdm
 
-from .config import Config
+from .config import Config, VectorSpec
+from .constants import F64_T, IMG_T, JS_T
 from .io_bag import Rosbag2Reader
 from .sync import SyncStats, TopicBuffer
 from .utils import (
@@ -50,6 +51,8 @@ class FrameBuffers:
     images: Dict[str, TopicBuffer]
     state: TopicBuffer
     action: TopicBuffer
+    state_type: Optional[str] = None
+    action_type: Optional[str] = None
 
 
 class RosbagToLeRobotConverter:
@@ -158,6 +161,52 @@ class RosbagToLeRobotConverter:
         )
         return ds
 
+    def _resolve_topic_type(
+        self,
+        reader: Rosbag2Reader,
+        topic_name: str,
+        configured_type: Optional[str],
+    ) -> str:
+        """Determine the ROS message type for a topic from config or metadata."""
+
+        if configured_type:
+            return configured_type
+
+        metadata = reader.metadata
+        topics = metadata.get("topics_with_message_count", []) or []
+        for entry in topics:
+            topic_meta = entry.get("topic_metadata", {}) or {}
+            if topic_meta.get("name") == topic_name:
+                msg_type = topic_meta.get("type")
+                if msg_type:
+                    return msg_type
+
+        raise ValueError(
+            f"Unable to determine message type for topic '{topic_name}'. "
+            "Set 'type' (or 'msg_type') in the config for this topic."
+        )
+
+    def _vector_from_msg(self, msg, msg_type: str, spec: VectorSpec):
+        """Convert a ROS message into a numeric vector based on its type."""
+
+        if msg_type == JS_T:
+            return ros_jointstate_to_vec6(
+                msg,
+                joint_order=self.cfg.joint_order,
+                use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms,
+            )
+        if msg_type == F64_T:
+            return ros_float64multiarray_to_vec6(
+                msg,
+                size=spec.size,
+                use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms,
+            )
+
+        raise ValueError(
+            f"Unsupported message type '{msg_type}' for vector '{spec.key}'. "
+            "Expected JointState or Float64MultiArray."
+        )
+
     def _buffers_from_bag(self, bag_path: Path) -> FrameBuffers:
         """Load all relevant messages from a rosbag into in-memory buffers."""
 
@@ -168,14 +217,31 @@ class RosbagToLeRobotConverter:
             self.log.warning(f"Skipping already processed bag: {bag_path}")
             return FrameBuffers(images={}, state=TopicBuffer(), action=TopicBuffer())
 
-        IMG_T = "sensor_msgs/msg/Image"
-        JS_T = "sensor_msgs/msg/JointState"
-        F64_T = "std_msgs/msg/Float64MultiArray"  # <<— action type
+        state_type = None
+        action_type = None
+
+        try:
+            state_type = self._resolve_topic_type(
+                reader, self.cfg.topics.state, self.cfg.state.msg_type
+            )
+        except ValueError as exc:
+            self.log.error(str(exc))
+            raise
+
+        try:
+            action_type = self._resolve_topic_type(
+                reader, self.cfg.topics.action, self.cfg.action.msg_type
+            )
+        except ValueError as exc:
+            self.log.error(str(exc))
+            raise
 
         bufs = FrameBuffers(
             images={name: TopicBuffer() for name in self.cfg.images},
             state=TopicBuffer(),
             action=TopicBuffer(),
+            state_type=state_type,
+            action_type=action_type,
         )
 
         for msg in reader.iter_messages():
@@ -189,12 +255,12 @@ class RosbagToLeRobotConverter:
             if matched_image:
                 continue
 
-            # state (JointState) and action (Float64MultiArray)
+            # state and action topics
             if msg.topic == self.cfg.topics.state:
-                des = reader.deserialize(msg.raw, JS_T)
+                des = reader.deserialize(msg.raw, state_type)
                 bufs.state.add(msg.t_sec, des)
             elif msg.topic == self.cfg.topics.action:
-                des = reader.deserialize(msg.raw, F64_T)
+                des = reader.deserialize(msg.raw, action_type)
                 bufs.action.add(msg.t_sec, des)
 
         for b in bufs.images.values():
@@ -348,24 +414,25 @@ class RosbagToLeRobotConverter:
 
             self.log.info(f"Syncing bag {bag.name} with {ref_len} reference frames...")
 
+            state_type = bufs.state_type or self.cfg.state.msg_type
+            action_type = bufs.action_type or self.cfg.action.msg_type
+
+            if not state_type or not action_type:
+                raise ValueError(
+                    "State or action message type could not be resolved for bag "
+                    f"{bag.name}."
+                )
+
             for m in self._iter_synced(bufs):
                 try:
                     # Convert ROS messages → numpy arrays
                     # inside the frame loop
                     st6 = np.asarray(
-                        ros_jointstate_to_vec6(
-                            m["state"],
-                            joint_order=self.cfg.joint_order,
-                            use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms,
-                        ),
+                        self._vector_from_msg(m["state"], state_type, self.cfg.state),
                         dtype=np.float32,
                     ).ravel()
                     ac6 = np.asarray(
-                        ros_float64multiarray_to_vec6(
-                            m["action"],
-                            size=self.cfg.action.size,
-                            use_lerobot_ranges_norms=self.cfg.use_lerobot_ranges_norms,
-                        ),
+                        self._vector_from_msg(m["action"], action_type, self.cfg.action),
                         dtype=np.float32,
                     ).ravel()
 
