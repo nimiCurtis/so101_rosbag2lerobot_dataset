@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 import math
 from pathlib import Path
 
@@ -63,15 +64,23 @@ def test_ros_jointstate_to_vec6_with_order_and_norm(dummy_jointstate_factory):
     vec = utils.ros_jointstate_to_vec6(msg, joint_order=msg.name, use_lerobot_ranges_norms=True)
 
     assert vec.shape == (6,)
-    assert np.allclose(vec[:-1], 50.0)
-    assert np.isclose(vec[-1], 60.0)
+
+    expected = [
+        utils.radians_to_normalized(name, math.pi / 2) for name in names_order
+    ]
+    assert np.allclose(vec, expected)
 
 
 def test_ros_float64multiarray_to_vec6_normalized(dummy_array_factory):
     msg = dummy_array_factory([math.pi / 2] * 6)
     vec = utils.ros_float64multiarray_to_vec6(msg, use_lerobot_ranges_norms=True)
     assert vec.shape == (6,)
-    assert np.isclose(vec[-1], 60.0)
+
+    expected = [
+        utils.radians_to_normalized(f"joint_{i}" if i < 5 else "gripper", math.pi / 2)
+        for i in range(6)
+    ]
+    assert np.allclose(vec, expected)
 
 
 def test_ros_jointstate_to_vec6_requires_six_values(dummy_jointstate_factory):
@@ -104,10 +113,9 @@ def test_get_versioned_paths_creates_unique_names(tmp_out_dir: Path):
     logs_dir.mkdir(parents=True, exist_ok=True)
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    logs_path, resolved_repo_id, data_path = utils.get_versioned_paths(str(tmp_out_dir), repo_id)
+    logs_path, resolved_repo_id = utils.get_versioned_paths(str(tmp_out_dir), repo_id)
     assert logs_path.endswith("dataset_2")
     assert resolved_repo_id.endswith("dataset_2")
-    assert data_path.endswith("dataset_2")
 
 
 # ---------------------------
@@ -151,8 +159,9 @@ def test_config_from_yaml(make_config_yaml, tmp_path):
     cfg = Config.from_yaml(str(config_path))
 
     assert cfg.images["wrist"].topic == "/camera"
-    assert cfg.root == str(out_dir / "org" / "dataset")
+    assert cfg.root == str(out_dir)
     assert cfg.logs_dir == str(out_dir / ".logs" / "org" / "dataset")
+    assert cfg.repo_id is None
     assert cfg.topics.state == "/joint_state"
     assert cfg.joint_order is None
 
@@ -167,9 +176,29 @@ def test_config_from_yaml_increments_version(make_config_yaml, tmp_path):
     config_path = make_config_yaml({"root": str(out_dir)})
     cfg = Config.from_yaml(str(config_path))
 
-    assert cfg.root == str(out_dir / "org" / "dataset_2")
+    assert cfg.root == str(out_dir)
     assert cfg.logs_dir == str(out_dir / ".logs" / "org" / "dataset_2")
-    assert cfg.repo_id == "org/dataset_2"
+    assert cfg.repo_id is None
+
+
+def test_config_from_yaml_defaults_to_hf_home(make_config_yaml, tmp_path, monkeypatch):
+    hf_home = tmp_path / "hf_home"
+    config_path = make_config_yaml({})
+    with config_path.open("r") as handle:
+        cfg_dict = json.load(handle)
+    cfg_dict.pop("root", None)
+    with config_path.open("w") as handle:
+        json.dump(cfg_dict, handle)
+
+    monkeypatch.setattr(
+        "so101_rosbag2lerobot_dataset.config.HF_LEROBOT_HOME", str(hf_home)
+    )
+
+    cfg = Config.from_yaml(str(config_path))
+
+    assert cfg.root is None
+    assert cfg.repo_id == "org/dataset"
+    assert Path(cfg.logs_dir) == hf_home / ".logs" / "org" / "dataset"
 
 
 def test_config_from_yaml_reads_vector_types(make_config_yaml, tmp_path):
