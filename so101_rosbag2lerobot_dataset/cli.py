@@ -27,7 +27,6 @@ from pathlib import Path
 
 from so101_rosbag2lerobot_dataset.config import Config
 from so101_rosbag2lerobot_dataset.converter import RosbagToLeRobotConverter
-from so101_rosbag2lerobot_dataset.utils import get_versioned_paths
 
 
 def _setup_logger(log_path: str) -> logging.Logger:
@@ -67,15 +66,12 @@ def main():
 
     cfg = Config.from_yaml(args.config)
 
-    # Get versioned dataset directory and update config
-    log_path, data_path = get_versioned_paths("output", cfg.data_dir_name)
-
-    log = _setup_logger(log_path)
+    log = _setup_logger(cfg.logs_dir)
 
     log.info("=== so101_rosbag2lerobot_dataset ===")
-    log.info("Data dir: %s", data_path)
-    log.info("Logs dir: %s", log_path)
-    log.info("Versioned dataset: %s", log_path.split("/")[-1])
+    log.info("Data dir: %s", cfg.root)
+    log.info("Logs dir: %s", cfg.logs_dir)
+    log.info("Versioned dataset: %s", cfg.repo_id)
     log.info("Bags root: %s", cfg.bags_root)
     log.info("Repo id: %s | FPS: %s | Videos: %s", cfg.repo_id, cfg.fps, cfg.use_videos)
     log.info("Image streams: %s", ", ".join(f"{n}:{s.topic}" for n, s in cfg.images.items()))

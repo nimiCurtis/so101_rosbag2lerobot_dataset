@@ -123,11 +123,10 @@ def random_seed() -> int:
 def tmp_out_dir(tmp_path: Path) -> Path:
     """
     Create a standard output folder layout for tests:
-        <tmp>/output/{logs,data}
+        <tmp>/output/.logs
     """
     out = tmp_path / "output"
-    (out / "logs").mkdir(parents=True, exist_ok=True)
-    (out / "data").mkdir(parents=True, exist_ok=True)
+    (out / ".logs").mkdir(parents=True, exist_ok=True)
     return out
 
 
@@ -178,13 +177,12 @@ def make_config_yaml(tmp_path: Path) -> Callable[[Dict[str, Any]], Path]:
     Pass a dict of overrides; sensible defaults are provided.
 
     Usage:
-        path = make_config_yaml({"out_dir": "/tmp/out", "robot_type": "so101"})
+        path = make_config_yaml({"root": "/tmp/out", "robot_type": "so101"})
     """
 
     def _make(overrides: Dict[str, Any]) -> Path:
         defaults: Dict[str, Any] = {
-            "out_dir": str(tmp_path),
-            "data_dir_name": "dataset",
+            "root": str(tmp_path),
             "repo_id": "org/dataset",
             "robot_type": "so101",
             "episode_per_bag": True,

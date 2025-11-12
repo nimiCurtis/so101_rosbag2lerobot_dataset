@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import yaml
+from lerobot.utils.constants import HF_LEROBOT_HOME
 
 from .utils import get_versioned_paths
 
@@ -71,8 +72,8 @@ class Topics:
 class Config:
     """Configuration for converting ROS 2 bag files into LeRobot datasets."""
 
-    data_dir_name: str
     root: str
+    logs_dir: str
     repo_id: str
     robot_type: str
     episode_per_bag: bool
@@ -107,6 +108,7 @@ class Config:
         with open(path, "r") as f:
             y = yaml.safe_load(f)
 
+        # Handle image streams
         images = {
             name: ImageStream(
                 key=spec["key"],
@@ -116,18 +118,19 @@ class Config:
             for name, spec in y["images"].items()
         }
 
+        # Handle joint order
         joint_order = y.get("joint_order", None)
         if joint_order is not None and len(joint_order) == 0:
             joint_order = None
 
-        out_dir = y.get("out_dir", "output")
-        data_dir_name = y.get("data_dir_name", "lerobot_dataset")
-
-        _, data_path = get_versioned_paths(out_dir, data_dir_name)
-        root = data_path
+        # Determine root and log paths
+        root_dir = y.get("root", HF_LEROBOT_HOME)
+        log_path, repo_id = get_versioned_paths(root_dir, y["repo_id"])
 
         def _vector_spec(spec: Dict[str, object]) -> VectorSpec:
-            msg_type = spec.get("msg_type") if spec.get("msg_type") is not None else spec.get("type")
+            msg_type = (
+                spec.get("msg_type") if spec.get("msg_type") is not None else spec.get("type")
+            )
             return VectorSpec(
                 key=str(spec["key"]),
                 size=int(spec["size"]),
@@ -135,9 +138,9 @@ class Config:
             )
 
         return Config(
-            data_dir_name=data_dir_name,
-            root=root,
-            repo_id=y["repo_id"],
+            root=None if root_dir == HF_LEROBOT_HOME else root_dir,
+            logs_dir=log_path,
+            repo_id=repo_id if root_dir == HF_LEROBOT_HOME else None,
             robot_type=y["robot_type"],
             episode_per_bag=y.get("episode_per_bag", True),
             downsample_by=int(y.get("downsample_by", 1)),

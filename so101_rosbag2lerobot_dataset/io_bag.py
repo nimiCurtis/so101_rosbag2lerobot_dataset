@@ -23,11 +23,14 @@
 
 import importlib
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, List, Tuple
 
 import yaml
+
+_SPLIT_RE = re.compile(r"^(?P<prefix>.+?)_(?P<idx>\d+)\.(?P<ext>db3|bag)$", re.IGNORECASE)
 
 
 @dataclass
@@ -117,10 +120,36 @@ class Rosbag2Reader:
                 yaml.safe_dump(metadata, f)
 
 
-def discover_bags(root: Path):
-    """Yield rosbag database files stored under ``root`` recursively."""
+def _series_sort_key(p: Path) -> Tuple[str, str, int]:
+    """
+    Sort key that groups by parent dir and series prefix, then numeric split index.
+    For unsuffixed files (no _<num>), idx = -1 so they appear before any numbered parts
+    of the same prefix (rare for rosbag2, but safe).
+    """
+    fname = p.name
+    m = _SPR = _SPLIT_RE.match(fname)
+    if m:
+        prefix = m.group("prefix")
+        idx = int(m.group("idx"))
+    else:
+        # No numeric suffix; treat the whole stem as prefix and idx = -1
+        prefix = p.stem
+        idx = -1
+    # Group by parent path string for stable cross-platform ordering
+    return (str(p.parent), prefix, idx)
 
+
+def discover_bags(root: Path) -> Iterator[Path]:
+    """Yield rosbag database files under `root`, sorted so ..._0, _1, _2, ... per series."""
+    candidates: List[Path] = []
     for dirpath, _, files in os.walk(root):
         for f in files:
-            if f.endswith(".db3") or f.endswith(".bag"):
-                yield Path(dirpath) / f
+            if f.lower().endswith((".db3", ".bag")):
+                candidates.append(Path(dirpath) / f)
+
+    # Sort by (parent_dir, series_prefix, split_idx)
+    candidates.sort(key=_series_sort_key)
+
+    # Yield in the sorted order
+    for p in candidates:
+        yield p

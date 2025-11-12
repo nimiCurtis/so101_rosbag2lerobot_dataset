@@ -28,23 +28,19 @@ pre-commit install
    ```bash
    so101-rosbag2lerobot --config path/to/config.yaml
    ```
-3. Conversion produces versioned `data/` and `logs/` sub-directories inside `./output`. The logs contain synchronization reports for each bag.
+3. Conversion produces a versioned dataset under `<root>/<repo_id>` and stores logs in `<root>/.logs/<repo_id>`. The logs contain synchronization reports for each bag.
 
 ## Visualization
 
-After converting your ROS bags to LeRobot format, you can visualize and explore your dataset using the LeRobot CLI tools.
+After converting your ROS bags to LeRobot format, you can visualize and explore your dataset on [Huggingface Lerobot Dataset Visualizer](https://huggingface.co/spaces/lerobot/visualize_dataset) or by using the LeRobot CLI tools locally.
 
-Visualize your converted dataset with:
+Visualize your converted dataset locally with:
 
 ```bash
 lerobot-dataset-viz --repo-id REPO_ID \
  --episode-index INDEX \
- --root ROOT \
  --mode local
 ```
-
-**[NOTE] For now this project support only local dataset visualization and not from the hub.**
-
 
 ## Contribute
 
@@ -61,5 +57,3 @@ This project builds upon the excellent work of the [LeRobot](https://github.com/
 ## License
 
 This repository is released under the terms of the MIT License. See [LICENSE](LICENSE) for details.
-
-## V1.0.1 ROADMAP

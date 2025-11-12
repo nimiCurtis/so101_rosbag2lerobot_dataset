@@ -1,11 +1,10 @@
 # =============================
 # Global
 # =============================
-out_dir: "./output"          # local output directory
-data_dir_name: "lerobot_dataset_example" # name of dataset inside HF repo
-repo_id: "nimiCurtis/test_01" # set your HF repo here
+# root: "~/.cache/huggingface/lerobot"          # local root directory for datasets
+repo_id: "nimiCurtis/test_01" # dataset path relative to the root directory
 robot_type: "so101_follower"             # Support only -> so101_follower
-episode_per_bag: true                    # split each rosbag into one episode
+episode_per_bag: true                    # split each rosbag into one episode # Not used currently
 downsample_by: 1                         # use every frame
 force: true                             # overwrite existing datasets
 upload_to_hub: true                     # upload to HF hub after conversion
@@ -16,7 +15,7 @@ task_text: "pick and place"
 # pick one of: image:<name> | state | action
 # when using images, set to "image:wrist" (or any listed below)
 sync_reference: "image:wrist"
-sync_tolerance_s: 0.010                  # max time diff for sync (in seconds). Should be <= 1/fps.
+sync_tolerance_s: 0.0165                  # max time diff for sync (in seconds). Should be <= 1/fps.
 
 use_videos: true
 fps: 30
