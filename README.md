@@ -32,19 +32,15 @@ pre-commit install
 
 ## Visualization
 
-After converting your ROS bags to LeRobot format, you can visualize and explore your dataset using the LeRobot CLI tools.
+After converting your ROS bags to LeRobot format, you can visualize and explore your dataset on [Huggingface Lerobot Dataset Visualizer](https://huggingface.co/spaces/lerobot/visualize_dataset) or by using the LeRobot CLI tools locally.
 
-Visualize your converted dataset with:
+Visualize your converted dataset locally with:
 
 ```bash
 lerobot-dataset-viz --repo-id REPO_ID \
  --episode-index INDEX \
- --root ROOT \
  --mode local
 ```
-
-**[NOTE] For now this project support only local dataset visualization and not from the hub.**
-
 
 ## Contribute
 
