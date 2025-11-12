@@ -214,7 +214,8 @@ class RosbagToLeRobotConverter:
         self.log.info("Reading bag: %s", bag_path.name)
         reader = Rosbag2Reader(bag_path, self.cfg.force, logger=self.log)
 
-        if reader.processed:
+        # Skip already processed bags unless forced
+        if reader.processed and not self.cfg.force:
             self.log.warning(f"Skipping already processed bag: {bag_path}")
             return FrameBuffers(images={}, state=TopicBuffer(), action=TopicBuffer())
 
@@ -487,6 +488,10 @@ class RosbagToLeRobotConverter:
                 dropped,
             )
 
+        # Finalize dataset, must be called after all episodes are added for closing parquet writers
+        ds.finalize()
+
+        # Optionally upload to Hugging Face Hub
         if self.cfg.upload_to_hub:
             ds.push_to_hub(repo_id=self.cfg.repo_id)
 

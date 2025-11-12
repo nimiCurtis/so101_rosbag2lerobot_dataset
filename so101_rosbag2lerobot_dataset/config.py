@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import yaml
+from lerobot.utils.constants import HF_LEROBOT_HOME
 
 from .utils import get_versioned_paths
 
@@ -107,6 +108,7 @@ class Config:
         with open(path, "r") as f:
             y = yaml.safe_load(f)
 
+        # Handle image streams
         images = {
             name: ImageStream(
                 key=spec["key"],
@@ -116,11 +118,13 @@ class Config:
             for name, spec in y["images"].items()
         }
 
+        # Handle joint order
         joint_order = y.get("joint_order", None)
         if joint_order is not None and len(joint_order) == 0:
             joint_order = None
 
-        root_dir = y.get("root", "~/.cache/huggingface/lerobot")
+        # Determine root and log paths
+        root_dir = y.get("root", HF_LEROBOT_HOME)
         log_path, repo_id = get_versioned_paths(root_dir, y["repo_id"])
 
         def _vector_spec(spec: Dict[str, object]) -> VectorSpec:
@@ -134,9 +138,9 @@ class Config:
             )
 
         return Config(
-            root=root_dir,
+            root=None if root_dir == HF_LEROBOT_HOME else root_dir,
             logs_dir=log_path,
-            repo_id=repo_id,
+            repo_id=repo_id if root_dir == HF_LEROBOT_HOME else None,
             robot_type=y["robot_type"],
             episode_per_bag=y.get("episode_per_bag", True),
             downsample_by=int(y.get("downsample_by", 1)),

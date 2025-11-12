@@ -1,7 +1,7 @@
 # =============================
 # Global
 # =============================
-root: "~/.cache/huggingface/lerobot"          # local root directory for datasets
+# root: "~/.cache/huggingface/lerobot"          # local root directory for datasets
 repo_id: "nimiCurtis/test_01" # dataset path relative to the root directory
 robot_type: "so101_follower"             # Support only -> so101_follower
 episode_per_bag: true                    # split each rosbag into one episode # Not used currently
@@ -31,7 +31,7 @@ video:
 images:
   wrist:
     key: "observation.images.wrist"
-    shape: [480, 640, 3]
+    shape: [360, 640, 3]
     topic: "/follower/cam_front/image_raw"
 
 # =============================
@@ -48,7 +48,7 @@ action:
   # msg_type: "sensor_msgs/msg/JointState" # Optional
 
 # Use Lerobot normalized ranges for joints
-use_lerobot_ranges_norms: true
+use_lerobot_ranges_norms: false
 
 # If you want a specific joint order, list exactly 6 names (must match JointState.name).
 # If left empty, the converter takes the FIRST 6 positions in the message.
@@ -58,7 +58,7 @@ joint_order: ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wris
 # ROS 2 topics (ALL REQUIRED; set action to same as state if needed)
 topics:
   state:  "/follower/joint_states"       # sensor_msgs/JointState
-  action: "/leader/joint_states"       # sensor_msgs/JointState
+  action: "/leader/joint_commands"       # sensor_msgs/JointState
 
 bags_root: "/home/nimrod/dev/so101_rosbag2lerobot_dataset/bag"
 # =============================
