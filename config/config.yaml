@@ -2,19 +2,19 @@
 # Global
 # =============================
 # root: "~/.cache/huggingface/lerobot"          # local root directory for datasets
-repo_id: "nimiCurtis/test_01" # dataset path relative to the root directory
+repo_id: "nimiCurtis/pick_and_place" # dataset path relative to the root directory
 robot_type: "so101_follower"             # Support only -> so101_follower
 episode_per_bag: true                    # split each rosbag into one episode # Not used currently
 downsample_by: 1                         # use every frame
 force: true                             # overwrite existing datasets
 upload_to_hub: true                     # upload to HF hub after conversion
-task_text: "pick and place"
+task_text: "Pick the cube and place it in the bowl."  # task description for dataset card
 
 # =============================
 # ---- Video settings ----
 # pick one of: image:<name> | state | action
 # when using images, set to "image:wrist" (or any listed below)
-sync_reference: "image:wrist"
+sync_reference: "image:camera1"
 sync_tolerance_s: 0.0165                  # max time diff for sync (in seconds). Should be <= 1/fps.
 
 use_videos: true
@@ -29,10 +29,15 @@ video:
 
 # multiple image streams; each has its own key, shape, and topic
 images:
-  wrist:
-    key: "observation.images.wrist"
-    shape: [360, 640, 3]
+  camera1:
+    key: "observation.images.camera1"
+    shape: [480, 640, 3]
     topic: "/follower/cam_front/image_raw"
+  
+  camera2:
+    key: "observation.images.camera2"
+    shape: [480, 640, 3]
+    topic: "/static_camera/cam_side/color/image_raw"
 
 # =============================
 # ---- Observation & Action schema ----
@@ -58,7 +63,7 @@ joint_order: ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wris
 # ROS 2 topics (ALL REQUIRED; set action to same as state if needed)
 topics:
   state:  "/follower/joint_states"       # sensor_msgs/JointState
-  action: "/leader/joint_commands"       # sensor_msgs/JointState
+  action: "/leader/joint_states"       # sensor_msgs/JointState
 
-bags_root: "/home/nimrod/dev/so101_rosbag2lerobot_dataset/bag"
+bags_root: "/home/nimrod/ros2_ws/src/so101_ros2/bag"
 # =============================

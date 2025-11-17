@@ -39,9 +39,6 @@ line-length = 100
 [tool.ruff.lint]
 extend-select = ["I"]
 
-[tool.black]
-line-length = 100
-
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
