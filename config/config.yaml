@@ -31,12 +31,12 @@ video:
 images:
   camera1:
     key: "observation.images.camera1"
-    shape: [480, 640, 3]
+    shape: [480, 640, 3] # H, W, C
     topic: "/follower/cam_front/image_raw"
   
   camera2:
     key: "observation.images.camera2"
-    shape: [480, 640, 3]
+    shape: [480, 640, 3] # H, W, C
     topic: "/static_camera/cam_side/color/image_raw"
 
 # =============================
